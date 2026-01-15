@@ -42,10 +42,10 @@ class Offre
     private ?int $coeff_departement = null;
 
     #[ORM\Column]
-    private ?\DateTime $date_de_publication = null;
+    private ?\DateTimeImmutable $date_de_publication = null;
 
-    #[ORM\Column(enumType: StatutOffre::class)]
-    private ?StatutOffre $statut_offre = null;
+    #[ORM\Column(enumType: StatutOffre::class, options: ['default' => 'En attente'])]
+    private ?StatutOffre $statut_offre = StatutOffre::EN_ATTENTE;
 
     #[ORM\Column]
     private ?int $nombre_de_vues = null;
@@ -151,12 +151,12 @@ class Offre
         return $this;
     }
 
-    public function getDateDePublication(): ?\DateTime
+    public function getDateDePublication(): ?\DateTimeImmutable
     {
         return $this->date_de_publication;
     }
 
-    public function setDateDePublication(\DateTime $date_de_publication): static
+    public function setDateDePublication(\DateTimeImmutable $date_de_publication): static
     {
         $this->date_de_publication = $date_de_publication;
 

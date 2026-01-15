@@ -29,7 +29,7 @@ class Utilisateur
     private ?string $email = null;
 
     #[ORM\Column(type: Types::DATE_MUTABLE, nullable: true)]
-    private ?\DateTime $date_de_naissance = null;
+    private ?\DateTimeImmutable $date_de_naissance = null;
 
     #[ORM\Column(length: 12, nullable: true)]
     private ?string $telephone = null;
@@ -93,12 +93,12 @@ class Utilisateur
         return $this;
     }
 
-    public function getDateDeNaissance(): ?\DateTime
+    public function getDateDeNaissance(): ?\DateTimeImmutable
     {
         return $this->date_de_naissance;
     }
 
-    public function setDateDeNaissance(?\DateTime $date_de_naissance): static
+    public function setDateDeNaissance(?\DateTimeImmutable $date_de_naissance): static
     {
         $this->date_de_naissance = $date_de_naissance;
 

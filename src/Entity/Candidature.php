@@ -18,7 +18,7 @@ class Candidature
     private ?string $message = null;
 
     #[ORM\Column]
-    private ?\DateTime $date_envoi = null;
+    private ?\DateTimeImmutable $date_envoi = null;
 
     public function getId(): ?int
     {
@@ -37,12 +37,12 @@ class Candidature
         return $this;
     }
 
-    public function getDateEnvoi(): ?\DateTime
+    public function getDateEnvoi(): ?\DateTimeImmutable
     {
         return $this->date_envoi;
     }
 
-    public function setDateEnvoi(\DateTime $date_envoi): static
+    public function setDateEnvoi(\DateTimeImmutable $date_envoi): static
     {
         $this->date_envoi = $date_envoi;
 

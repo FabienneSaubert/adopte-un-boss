@@ -2,6 +2,7 @@
 
 namespace App\Entity;
 
+use App\Enum\StatutDemande;
 use App\Repository\DemandeContactRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
@@ -30,7 +31,10 @@ class DemandeContact
     private ?string $message = null;
 
     #[ORM\Column]
-    private ?\DateTime $date_envoi = null;
+    private ?\DateTimeImmutable $date_envoi = null;
+
+    #[ORM\Column(enumType: StatutDemande::class, options: ['default' => 'En attente'])]
+    private ?StatutDemande $statut_demande = StatutDemande::EN_ATTENTE;
 
     public function getId(): ?int
     {
@@ -97,14 +101,26 @@ class DemandeContact
         return $this;
     }
 
-    public function getDateEnvoi(): ?\DateTime
+    public function getDateEnvoi(): ?\DateTimeImmutable
     {
         return $this->date_envoi;
     }
 
-    public function setDateEnvoi(\DateTime $date_envoi): static
+    public function setDateEnvoi(\DateTimeImmutable $date_envoi): static
     {
         $this->date_envoi = $date_envoi;
+
+        return $this;
+    }
+
+    public function getStatutDemande(): ?StatutDemande
+    {
+        return $this->statut_demande;
+    }
+
+    public function setStatutDemande(StatutDemande $statut_demande): static
+    {
+        $this->statut_demande = $statut_demande;
 
         return $this;
     }
