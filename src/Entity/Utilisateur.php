@@ -40,6 +40,12 @@ class Utilisateur
     #[ORM\Column(enumType: StatutInscription::class, options: ['default' => 'En attente'])]
     private ?StatutInscription $statut_inscription = StatutInscription::EN_ATTENTE;
 
+    #[ORM\OneToOne(mappedBy: 'utilisateur', cascade: ['persist', 'remove'])]
+    private ?Candidat $candidat = null;
+
+    #[ORM\OneToOne(mappedBy: 'utilisateur', cascade: ['persist', 'remove'])]
+    private ?Recruteur $recruteur = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -137,6 +143,40 @@ class Utilisateur
     public function setStatutInscription(StatutInscription $statut_inscription): static
     {
         $this->statut_inscription = $statut_inscription;
+
+        return $this;
+    }
+
+    public function getCandidat(): ?Candidat
+    {
+        return $this->candidat;
+    }
+
+    public function setCandidat(Candidat $candidat): static
+    {
+        // set the owning side of the relation if necessary
+        if ($candidat->getUtilisateur() !== $this) {
+            $candidat->setUtilisateur($this);
+        }
+
+        $this->candidat = $candidat;
+
+        return $this;
+    }
+
+    public function getRecruteur(): ?Recruteur
+    {
+        return $this->recruteur;
+    }
+
+    public function setRecruteur(Recruteur $recruteur): static
+    {
+        // set the owning side of the relation if necessary
+        if ($recruteur->getUtilisateur() !== $this) {
+            $recruteur->setUtilisateur($this);
+        }
+
+        $this->recruteur = $recruteur;
 
         return $this;
     }

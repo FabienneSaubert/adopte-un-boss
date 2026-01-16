@@ -6,6 +6,8 @@ use App\Enum\CategorieOffre;
 use App\Enum\NiveauEtude;
 use App\Enum\StatutOffre;
 use App\Repository\OffreRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
@@ -49,6 +51,32 @@ class Offre
 
     #[ORM\Column]
     private ?int $nombre_de_vues = null;
+
+    #[ORM\ManyToOne(inversedBy: 'offres')]
+    #[ORM\JoinColumn(nullable: false)]
+    private ?Recruteur $recruteur = null;
+
+    /**
+     * @var Collection<int, Candidature>
+     */
+    #[ORM\OneToMany(targetEntity: Candidature::class, mappedBy: 'offre')]
+    private Collection $candidatures;
+
+    #[ORM\ManyToOne(inversedBy: 'offres')]
+    #[ORM\JoinColumn(nullable: false)]
+    private ?Departement $departement = null;
+
+    /**
+     * @var Collection<int, SelectionCompetence>
+     */
+    #[ORM\OneToMany(targetEntity: SelectionCompetence::class, mappedBy: 'offre')]
+    private Collection $selectionCompetences;
+
+    public function __construct()
+    {
+        $this->candidatures = new ArrayCollection();
+        $this->selectionCompetences = new ArrayCollection();
+    }
 
     public function getId(): ?int
     {
@@ -183,6 +211,90 @@ class Offre
     public function setNombreDeVues(int $nombre_de_vues): static
     {
         $this->nombre_de_vues = $nombre_de_vues;
+
+        return $this;
+    }
+
+    public function getRecruteur(): ?Recruteur
+    {
+        return $this->recruteur;
+    }
+
+    public function setRecruteur(?Recruteur $recruteur): static
+    {
+        $this->recruteur = $recruteur;
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Candidature>
+     */
+    public function getCandidatures(): Collection
+    {
+        return $this->candidatures;
+    }
+
+    public function addCandidature(Candidature $candidature): static
+    {
+        if (!$this->candidatures->contains($candidature)) {
+            $this->candidatures->add($candidature);
+            $candidature->setOffre($this);
+        }
+
+        return $this;
+    }
+
+    public function removeCandidature(Candidature $candidature): static
+    {
+        if ($this->candidatures->removeElement($candidature)) {
+            // set the owning side to null (unless already changed)
+            if ($candidature->getOffre() === $this) {
+                $candidature->setOffre(null);
+            }
+        }
+
+        return $this;
+    }
+
+    public function getDepartement(): ?Departement
+    {
+        return $this->departement;
+    }
+
+    public function setDepartement(?Departement $departement): static
+    {
+        $this->departement = $departement;
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, SelectionCompetence>
+     */
+    public function getSelectionCompetences(): Collection
+    {
+        return $this->selectionCompetences;
+    }
+
+    public function addSelectionCompetence(SelectionCompetence $selectionCompetence): static
+    {
+        if (!$this->selectionCompetences->contains($selectionCompetence)) {
+            $this->selectionCompetences->add($selectionCompetence);
+            $selectionCompetence->setOffre($this);
+        }
+
+        return $this;
+    }
+
+    public function removeSelectionCompetence(SelectionCompetence $selectionCompetence): static
+    {
+        if ($this->selectionCompetences->removeElement($selectionCompetence)) {
+            // set the owning side to null (unless already changed)
+            if ($selectionCompetence->getOffre() === $this) {
+                $selectionCompetence->setOffre(null);
+            }
+        }
 
         return $this;
     }

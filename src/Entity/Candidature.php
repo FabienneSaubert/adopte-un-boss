@@ -20,6 +20,14 @@ class Candidature
     #[ORM\Column]
     private ?\DateTimeImmutable $date_envoi = null;
 
+    #[ORM\ManyToOne(inversedBy: 'candidatures')]
+    #[ORM\JoinColumn(nullable: false)]
+    private ?Candidat $candidat = null;
+
+    #[ORM\ManyToOne(inversedBy: 'candidatures')]
+    #[ORM\JoinColumn(nullable: false)]
+    private ?Offre $offre = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -45,6 +53,30 @@ class Candidature
     public function setDateEnvoi(\DateTimeImmutable $date_envoi): static
     {
         $this->date_envoi = $date_envoi;
+
+        return $this;
+    }
+
+    public function getCandidat(): ?Candidat
+    {
+        return $this->candidat;
+    }
+
+    public function setCandidat(?Candidat $candidat): static
+    {
+        $this->candidat = $candidat;
+
+        return $this;
+    }
+
+    public function getOffre(): ?Offre
+    {
+        return $this->offre;
+    }
+
+    public function setOffre(?Offre $offre): static
+    {
+        $this->offre = $offre;
 
         return $this;
     }
