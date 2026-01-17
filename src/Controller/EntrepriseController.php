@@ -113,7 +113,7 @@ final class EntrepriseController extends AbstractController
         // Si le N° de SIRET n'a pas été correctement validé, on renvoie une erreur.
         if ($siret === null) {
             // On retourne une erreur spécifique au N° de SIRET.
-            return $this->errorResponse($siretError ?? 'N° de SIRET invalide.', Response::HTTP_BAD_REQUEST);
+            return $this->errorResponse($siretError ?? "N° de SIRET invalide.", Response::HTTP_BAD_REQUEST);
         }
 
         // On prépare le message pour une éventuelle erreur d'adresse
@@ -374,6 +374,9 @@ final class EntrepriseController extends AbstractController
      */
     private function parseNom(mixed $value, bool $required, ?string &$error)
     {
+        // On effectue un nettoyage au préalable en enlevant les éventuels espaces avant et après
+        $value = trim($value);
+
         // Si le nom est absent ou vide
         if ($value === null || $value === '') {
             // Si l'adresse est obligatoire (cas d’une nouvelle entreprise),
@@ -445,6 +448,9 @@ final class EntrepriseController extends AbstractController
      */
     private function parseAdresse(mixed $value, bool $required, ?string &$error)
     {
+        // On effectue un nettoyage au préalable en enlevant les éventuels espaces avant et après
+        $value = trim($value);
+
         // Si l'adresse est absente ou vide
         if ($value === null || $value === '') {
             // Si l'adresse est obligatoire (cas d’une nouvelle entreprise),
