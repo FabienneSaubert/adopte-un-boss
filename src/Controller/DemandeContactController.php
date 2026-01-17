@@ -64,8 +64,9 @@ final class DemandeContactController extends AbstractController
 
         // On défini ici la date qui correspond à la date actuelle, venant du serveur
         // On prend une nouvelle instance de DateTimeImmutable qui renvoi une date inchangeable
-        // correspondante au moment où est exécuté la commande
-        $dateEnvoi = new DateTimeImmutable();
+        // correspondante au moment où est exécuté la commande.
+        // On choisi le bon fuseau horaire correspondant à la France métropolitaine.
+        $dateEnvoi = new DateTimeImmutable('now',new \DateTimeZone('Europe/Paris'));
 
         $demandecontact = (new DemandeContact())
             ->setNom($nom)
@@ -277,8 +278,17 @@ final class DemandeContactController extends AbstractController
             return null;
         }
 
+        // Suppression des caractères illégaux
+        $value = filter_var($value, FILTER_SANITIZE_EMAIL);
+
         if (mb_strlen($value) > 100) {
             $error = "L'email ne peut pas dépasser 100 caractères.";
+            return null;
+        }
+
+        // Validation de l'email par filtre PHP
+        if (!filter_var($value, FILTER_VALIDATE_EMAIL)) {
+            $error = "L'email n'est pas valide.";
             return null;
         }
 
