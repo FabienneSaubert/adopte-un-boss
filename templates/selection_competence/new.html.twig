@@ -1,0 +1,11 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}New SelectionCompetence{% endblock %}
+
+{% block body %}
+    <h1>Create new SelectionCompetence</h1>
+
+    {{ include('selection_competence/_form.html.twig') }}
+
+    <a href="{{ path('app_selection_competence_index') }}">back to list</a>
+{% endblock %}
