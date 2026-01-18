@@ -19,7 +19,7 @@ use Symfony\Component\Uid\Uuid;
 #[Route('/api/candidat')]
 final class CandidatController extends AbstractController
 {
-    #[Route('/candidats', name: 'app_candidat_list', methods: ['GET'])]
+    #[Route('', name: 'app_candidat_list', methods: ['GET'])]
     public function list(CandidatRepository $candidatRepository): JsonResponse
     {
         // Récupération du tableau d'objets "Candidats"  (findAll) -> sérialization index par index puis affichage.
@@ -31,7 +31,7 @@ final class CandidatController extends AbstractController
         return $this->json($candidats);
     }
 
-    #[Route('/new', name: 'app_candidat_new', methods: ['POST'])]
+    #[Route('', name: 'app_candidat_new', methods: ['POST'])]
     public function new(Request $request, EntityManagerInterface $entityManager, CandidatRepository $candidatRepository
 ): JsonResponse
     {
