@@ -19,7 +19,7 @@ use Symfony\Component\Uid\Uuid;
 #[Route('/api/candidat')]
 final class CandidatController extends AbstractController
 {
-    #[Route('/api/candidats', name: 'app_candidat_list', methods: ['GET'])]
+    #[Route('/candidats', name: 'app_candidat_list', methods: ['GET'])]
     public function list(CandidatRepository $candidatRepository): JsonResponse
     {
         // Récupération du tableau d'objets "Candidats"  (findAll) -> sérialization index par index puis affichage.
@@ -32,9 +32,11 @@ final class CandidatController extends AbstractController
     }
 
     #[Route('', name: 'app_candidat_new', methods: ['POST'])]
-    public function new(Request $request, EntityManagerInterface $entityManager, CandidatRepository $candidatRepository
-): JsonResponse
-    {
+    public function new(
+        Request $request,
+        EntityManagerInterface $entityManager,
+        CandidatRepository $candidatRepository
+    ): JsonResponse {
         $data = $this->decodeJson($request);
 
         if ($data === null) { // $data === null plus sécurisé que !$data
@@ -183,7 +185,7 @@ final class CandidatController extends AbstractController
         if (array_key_exists('cv', $data)) {
             $candidat->setCv($data['cv']);
         }
-// GESTION DES COLLECTTIONS 
+        // GESTION DES COLLECTTIONS 
         // Mise à jour du niveau d'études
         if (array_key_exists('niveau_etude', $data)) {
             try {
