@@ -31,12 +31,10 @@ final class CandidatController extends AbstractController
         return $this->json($candidats);
     }
 
-    #[Route('', name: 'app_candidat_new', methods: ['POST'])]
-    public function new(
-        Request $request,
-        EntityManagerInterface $entityManager,
-        CandidatRepository $candidatRepository
-    ): JsonResponse {
+    #[Route('/new', name: 'app_candidat_new', methods: ['POST'])]
+    public function new(Request $request, EntityManagerInterface $entityManager, CandidatRepository $candidatRepository
+): JsonResponse
+    {
         $data = $this->decodeJson($request);
 
         if ($data === null) { // $data === null plus sécurisé que !$data
@@ -185,7 +183,7 @@ final class CandidatController extends AbstractController
         if (array_key_exists('cv', $data)) {
             $candidat->setCv($data['cv']);
         }
-        // GESTION DES COLLECTTIONS 
+// GESTION DES COLLECTTIONS 
         // Mise à jour du niveau d'études
         if (array_key_exists('niveau_etude', $data)) {
             try {
