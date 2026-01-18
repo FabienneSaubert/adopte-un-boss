@@ -1,5 +1,5 @@
 <?php
-
+// composer require symfony/uid
 namespace App\Controller;
 
 use App\Entity\Candidat;
