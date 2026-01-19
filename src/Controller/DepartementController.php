@@ -33,8 +33,8 @@ final class DepartementController extends AbstractController
 
 //! ============================== CREER UN NOUVEAU DEPARTEMENT ==============================================================================================
 
-    #[Route('/new', name: 'app_departement_new', methods: ['GET', 'POST'])]
-    public function new(Request $request, EntityManagerInterface $entityManager): JsonResponse
+    #[Route('', name: 'app_departement_create', methods: ['POST'])]
+    public function create(Request $request, EntityManagerInterface $entityManager): JsonResponse
     {
      $data = $this->decodeJson($request);
         // lit le JSON envoyé par le client
@@ -102,8 +102,8 @@ final class DepartementController extends AbstractController
 //! ========================================= MODIFIER UN DEPARTEMENT ==============================================================================================
 
 
-    #[Route('/{id}/edit', name: 'app_departement_edit', methods: ['PUT', 'PATCH'])]
-    public function edit(int $id, Request $request,DepartementRepository $departementRepository, EntityManagerInterface $entityManager): JsonResponse
+    #[Route('/{id}', name: 'app_departement_update', methods: ['PUT', 'PATCH'])]
+    public function update(int $id, Request $request,DepartementRepository $departementRepository, EntityManagerInterface $entityManager): JsonResponse
     {
         $departement = $departementRepository->find($id);
         // Recherche du département à modifier
