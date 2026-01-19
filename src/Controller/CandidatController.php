@@ -19,7 +19,7 @@ use Symfony\Component\Uid\Uuid;
 #[Route('/api/candidat')]
 final class CandidatController extends AbstractController
 {
-    #[Route('', name: 'app_candidat_list', methods: ['GET'])]
+    #[Route('', name: 'api_candidat_get_collection', methods: ['GET'])]
     public function list(CandidatRepository $candidatRepository): JsonResponse
     {
         // Récupération du tableau d'objets "Candidats"  (findAll) -> sérialization index par index puis affichage.
@@ -31,9 +31,11 @@ final class CandidatController extends AbstractController
         return $this->json($candidats);
     }
 
-    #[Route('', name: 'app_candidat_new', methods: ['POST'])]
-    public function new(Request $request, EntityManagerInterface $entityManager, CandidatRepository $candidatRepository
-): JsonResponse
+    #[Route('', name: 'api_candidat_post_collection', methods: ['POST'])]
+    public function new(
+        Request $request, 
+        EntityManagerInterface $entityManager, 
+        CandidatRepository $candidatRepository ): JsonResponse
     {
         $data = $this->decodeJson($request);
 
@@ -84,6 +86,7 @@ final class CandidatController extends AbstractController
 
         // Vérifier si l'utilisateur n'est pas déjà associé à un candidat
         $candidatExistant = $candidatRepository->findOneBy(['utilisateur' => $utilisateur]);
+
         if ($candidatExistant) {
             return $this->errorResponse("Cet utilisateur est déjà associé à un candidat", Response::HTTP_CONFLICT);
         }
@@ -102,8 +105,10 @@ final class CandidatController extends AbstractController
 
         // Gestion des compétences
         if (isset($data['competence_ids']) && is_array($data['competence_ids'])) {
+
             foreach ($data['competence_ids'] as $competenceId) {
                 $competence = $entityManager->getRepository(Competence::class)->find($competenceId);
+
                 if ($competence) {
                     $candidat->addCompetence($competence);
                 } else {
@@ -114,7 +119,9 @@ final class CandidatController extends AbstractController
 
         // Gestion du département
         if (isset($data['departement_id'])) {
+
             $departement = $entityManager->getRepository(Departement::class)->find($data['departement_id']);
+
             if ($departement) {
                 $candidat->setDepartement($departement);
             } else {
@@ -129,8 +136,7 @@ final class CandidatController extends AbstractController
     }
 
 
-
-    #[Route('/{id}', name: 'app_candidat_show', methods: ['GET'])]
+    #[Route('/{id}', name: 'api_candidat_get_item', methods: ['GET'])]
     public function show(int $id, CandidatRepository $candidatRepository): JsonResponse
     {
         $candidat = $candidatRepository->find($id);
@@ -142,8 +148,12 @@ final class CandidatController extends AbstractController
         return $this->json($this->serializeCandidat($candidat));
     }
 
-    #[Route('/{id}', name: 'app_candidat_edit', methods: ['PATCH', 'PUT'])]
-    public function edit(int $id, Request $request, CandidatRepository $candidatRepository, EntityManagerInterface $entityManager): JsonResponse
+    #[Route('/{id}', name: 'api_candidat_put_item', methods: ['PATCH', 'PUT'])]
+    public function edit(
+        int $id, 
+        Request $request, 
+        CandidatRepository $candidatRepository, 
+        EntityManagerInterface $entityManager ): JsonResponse
     {
         $candidat = $candidatRepository->find($id);
 
@@ -186,20 +196,21 @@ final class CandidatController extends AbstractController
 
         // Mise à jour du niveau d'études
         if (array_key_exists('niveau_etude', $data)) {
-            try {
-                $niveauEtude = NiveauEtude::from($data['niveau_etude']);
+
+                $niveauEtude = NiveauEtude::tryFrom($data['niveau_etude']);
                 $candidat->setNiveauEtude($niveauEtude);
-            } catch (\ValueError $e) {
+       
+            if (!$niveauEtude) {
                 return $this->errorResponse('Valeur de niveau_etude invalide', Response::HTTP_BAD_REQUEST);
             }
         } elseif ($isPut) {
-            return $this->errorResponse('niveau_etude est requis', Response::HTTP_BAD_REQUEST);
+            return $this->errorResponse('Le niveau d\'études est requis', Response::HTTP_BAD_REQUEST);
         }
 
         // Mise à jour des compétences
         if (array_key_exists('competence_ids', $data)) {
             if (!is_array($data['competence_ids'])) {
-                return $this->errorResponse('competence_ids doit être un tableau', Response::HTTP_BAD_REQUEST);
+                return $this->errorResponse('La liste des id compétence doit être un tableau', Response::HTTP_BAD_REQUEST);
             }
 
             // Supprimer toutes les compétences existantes
@@ -209,7 +220,8 @@ final class CandidatController extends AbstractController
 
             // Ajouter les nouvelles compétences
             foreach ($data['competence_ids'] as $competenceId) {
-                $competence = $entityManager->getRepository(Competence::class)->find($competenceId);
+                $competence = $entityManager->getRepository(Competence::class)->find($competenceId); 
+                // Méthode plus concise :  $competence = $entityManager->find(Competence::class, $competenceId); 
                 if ($competence) {
                     $candidat->addCompetence($competence);
                 } else {
@@ -223,7 +235,7 @@ final class CandidatController extends AbstractController
             if ($data['departement_id'] === null) {
                 $candidat->setDepartement(null);
             } else {
-                $departement = $entityManager->getRepository(Departement::class)->find($data['departement_id']);
+                $departement = $entityManager->find(Departement::class,$data['departement_id']); // Méthode plus concise
                 if ($departement) {
                     $candidat->setDepartement($departement);
                 } else {
@@ -237,7 +249,7 @@ final class CandidatController extends AbstractController
         return $this->json($this->serializeCandidat($candidat));
     }
 
-    #[Route('/{id}', name: 'app_candidat_delete', methods: ['DELETE'])]
+    #[Route('/{id}', name: 'api_candidat_delete_item', methods: ['DELETE'])]
     public function delete(int $id, CandidatRepository $candidatRepository, EntityManagerInterface $entityManager): JsonResponse
     {
         // Requête ppour récupérer le candidat par son id
