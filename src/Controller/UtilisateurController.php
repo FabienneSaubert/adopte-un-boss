@@ -5,6 +5,8 @@ namespace App\Controller;
 // src contient notre application 
 
 use App\Entity\Utilisateur;
+use App\Enum\RoleUtilisateur;
+use App\Enum\StatutInscription;
 // permet d’utiliser l’entité Utilisateur, c’est-à-dire la classe PHP qui représente une table dans la base de données
 
 use App\Repository\UtilisateurRepository;
@@ -86,7 +88,14 @@ final class UtilisateurController extends AbstractController
             return $this->errorResponse('JSON invalide.', Response::HTTP_BAD_REQUEST);
         }
 
-        // ! ROLE ?
+        $role = RoleUtilisateur::tryFrom($data['role_utilisateur']);
+        // TryFrom = méthode pour énum, permet de comparer l'entrée avec les valeurs présentes dans
+        // l'enum niveau_etude. Si match -> retourne une instance, sinon retourne null;
+        // Ici, je compare la valeur de la requête à la valeur "niveau_etude" avec les enum possible
+        // On s'assure que l'entrée utilisateur soit bonne et non null.
+        if (!$role) {
+            return $this->errorResponse('Rôle utilisateur invalide.',Response::HTTP_BAD_REQUEST);
+        }
 
         $nom = trim((string) ($data["nom"] ?? ""));
         // récupère le nom et supprime les espaces inutiles
@@ -94,26 +103,42 @@ final class UtilisateurController extends AbstractController
         $prenom = trim((string) ($data["prenom"] ?? ""));
         // récupère le prénom et supprime les espaces inutiles
 
+        $emailErreur = null;
         $email = $this->verifEmail($data['email'] ?? null, true, $emailErreur);
+        if($email === null){
+            return $this->errorResponse($emailErreur ?? "Email est obligatoire", Response::HTTP_BAD_REQUEST);
+        }
       
+        $naissanceErreur = null;
         $dateDeNaissance = $this->verifDateNaissance($data['date_de_naissance'] ?? null, true, $naissanceErreur);
+        if($dateDeNaissance === null){
+            return $this->errorResponse($naissanceErreur ?? "Date de naissance est obligatoire", Response::HTTP_BAD_REQUEST);
+        }
 
+        $telephoneErreur = null;
         $telephone = $this->verifTelephone($data['telephone'] ?? null, true, $telephoneErreur);
-        // Vérifie que l'email : existe
-        //                       est un int
-        //                       respecte le format attendu → le regex
+        // Vérifie que le téléphone : existe
+        //                           est un string
+        //                           respecte le format attendu → le regex
+        if($telephone === null){
+            return $this->errorResponse($telephoneErreur ?? "Telephone est obligatoire", Response::HTTP_BAD_REQUEST);
+        }
 
-
+        $mdpErreur = null;
         $mdp_hash = $this->verifMdp($data['mot_de_passe'] ?? null, true, $mdpErreur);
-        // Vérifie que l'email : existe
-        //                       est un string
-        //                       respecte le format attendu → le regex
-
+        // Vérifie que le mot de passe : existe
+        //                              est un string
+        //                              respecte le format attendu → le regex
+        if($mdp_hash === null){
+            return $this->errorResponse($mdpErreur ?? "Mot de passe est obligatoire", Response::HTTP_BAD_REQUEST);
+        }
         $hashedMdp = password_hash($mdp_hash, PASSWORD_BCRYPT);
         // Hash le mot de passe avec l'algorithme BCRYPT pour le stocker de manière sécurisée
 
-
-        //!  $statut_inscription ????
+        $statut_inscription = StatutInscription::tryFrom($data['statut_inscription']);
+        if (!$statut_inscription) {
+            return $this->errorResponse("Statut d'inscription invalide.",Response::HTTP_BAD_REQUEST);
+        }
 
         $utilisateur = (new Utilisateur())
         // crée un nouvel objet utilisateur
@@ -123,7 +148,10 @@ final class UtilisateurController extends AbstractController
         ->setEmail($email)
         ->setDateDeNaissance($dateDeNaissance)
         ->setTelephone($telephone)
-        ->setMdpHash($hashedMdp);
+        ->setMdpHash($hashedMdp)
+        ->setRole($role)
+        ->setStatutInscription($statut_inscription);
+
         // remplit les propriétés de l'utilisateur
 
         $entityManager->persist($utilisateur);
@@ -162,7 +190,7 @@ final class UtilisateurController extends AbstractController
 //! ==================================================== MODIFIER UN UTILISATEUR ==============================================================================================
 
 
-    #[Route('/{id}/edit', name: 'app_utilisateur_edit', methods: ['GET', 'POST'])]
+    #[Route('/{id}/edit', name: 'app_utilisateur_edit', methods: ['PUT', 'PATCH'])]
     public function edit(int $id, Request $request, UtilisateurRepository $utilisateurRepository, EntityManagerInterface $entityManager): JsonResponse
     // $id → id de l'utilisateur à modifier
     // $request → données envoyées par le client
@@ -187,6 +215,15 @@ final class UtilisateurController extends AbstractController
         $isPut = $request ->getMethod() === "PUT";
         // vérifie si la méthode HTTP est PUT (PUT = modification complète)
 
+        //?? ====================================== ROLE =====================================================
+        if (array_key_exists('role_utilisateur', $data) || $isPut) {
+            $role = RoleUtilisateur::tryFrom($data['role_utilisateur']);
+            if (!$role) {
+                return $this->errorResponse('Rôle invalide.', Response::HTTP_BAD_REQUEST);
+            }
+            $utilisateur->setRole($role);
+        }
+
         //?? ====================================== NOM =====================================================
         if (array_key_exists('nom', $data) || $isPut) {
           // Si le champ last_name est envoyé OU si c’est un PUT (donc obligatoire)
@@ -194,7 +231,7 @@ final class UtilisateurController extends AbstractController
             $nom = trim((string) ($data['nom'] ?? ''));
             // Récupère le nom, supprime les espaces, si absent → chaîne vide
 
-            if ($nom === '') {
+            if ($nom === null) {
             // Vérifie si le nom est vide
 
                 return $this->errorResponse('Le nom est obligatoire.', Response::HTTP_BAD_REQUEST);
@@ -211,7 +248,7 @@ final class UtilisateurController extends AbstractController
             $prenom = trim((string) ($data['prenom'] ?? ''));
             // Récupère le prénom, supprime les espaces, si absent → chaîne vide
 
-            if ($prenom === '') {
+            if ($prenom === null) {
             // Vérifie si le prénom est vide
 
                 return $this->errorResponse('Prénom est obligatoire.', Response::HTTP_BAD_REQUEST);
@@ -233,10 +270,10 @@ final class UtilisateurController extends AbstractController
             //                       est un string
             //                       respecte le format attendu → le regex
 
-            if ($email === '') {
+            if ($email === null) {
             // Vérifie si l'email est vide
 
-                return $this->errorResponse('Email est obligatoire.', Response::HTTP_BAD_REQUEST);
+                return $this->errorResponse($emailErreur ?? 'Email est obligatoire.', Response::HTTP_BAD_REQUEST);
                 // Retourne une erreur JSON, code HTTP 400
             }
 
@@ -254,10 +291,10 @@ final class UtilisateurController extends AbstractController
 
             $dateDeNaissance = $this->verifDateNaissance($data['date_de_naissance'] ?? null, true, $naissanceErreur);
 
-            if ($dateDeNaissance === '') {
+            if ($dateDeNaissance === null) {
                 // Vérifie si la date de naissance est vide
 
-                return $this->errorResponse('Date de naissance est obligatoire.', Response::HTTP_BAD_REQUEST);
+                return $this->errorResponse($naissanceErreur ?? 'Date de naissance est obligatoire.', Response::HTTP_BAD_REQUEST);
                 // Retourne une erreur JSON, code HTTP 400
             }
 
@@ -273,14 +310,14 @@ final class UtilisateurController extends AbstractController
             // Variable pour stocker une erreur
 
             $telephone = $this->verifTelephone($data['telephone'] ?? null, true, $telephoneErreur);
-            // Vérifie que l'email : existe
-            //                       est un int
-            //                       respecte le format attendu → le regex
+            // Vérifie que le téléphone : existe
+            //                            est un string
+            //                            respecte le format attendu → le regex
 
-            if ($telephone === '') {
+            if ($telephone === null) {
                 // Vérifie si le numéro est vide
 
-                return $this->errorResponse('Téléphone est obligatoire.', Response::HTTP_BAD_REQUEST);
+                return $this->errorResponse($telephoneErreur ?? 'Téléphone est obligatoire.', Response::HTTP_BAD_REQUEST);
                 // Retourne une erreur JSON, code HTTP 400
             }
 
@@ -288,19 +325,29 @@ final class UtilisateurController extends AbstractController
             // Met à jour le numéro de téléphone de l'utilisateur
         }
 
+        //?? ====================================== STATUT D'INSCRIPTION =====================================================
+        if (array_key_exists('statut_inscription', $data) || $isPut) {
+            $statut_inscription = StatutInscription::tryFrom($data['statut_inscription']);
+            if (!$statut_inscription) {
+                return $this->errorResponse("Statut d'inscription invalide.", Response::HTTP_BAD_REQUEST);
+            }
+            $utilisateur->setStatutInscription($statut_inscription);
+        }
+
         //?? ====================================== MOT DE PASSE =====================================================
         if (array_key_exists('mot_de_passe', $data) || $isPut) {
         // Si le champ mot de passe est envoyé OU si c’est un PUT (donc obligatoire)
 
+            $mdpErreur = null;
             $mdp_hash = $this->verifMdp($data['mot_de_passe'] ?? null, true, $mdpErreur);
-            // Vérifie que l'email : existe
-            //                       est un string
-            //                       respecte le format attendu → le regex
+            // Vérifie que le mot de passe : existe
+            //                              est un string
+            //                              respecte le format attendu → le regex
 
-            if ($mdp_hash === '') {
+            if ($mdp_hash === null) {
             // Vérifie si le mot de passe est vide
 
-                return $this->errorResponse('Password is required.', Response::HTTP_BAD_REQUEST);
+                return $this->errorResponse($mdpErreur ?? 'Mot de passe est obligatoire.', Response::HTTP_BAD_REQUEST);
                 // Retourne une erreur JSON, code HTTP 400
             }
 
@@ -321,7 +368,7 @@ final class UtilisateurController extends AbstractController
 //! ==================================================== SUPPRIMER UN PRODUIT ==============================================================================================
 
 
-    #[Route('/{id}', name: 'app_utilisateur_delete', methods: ['POST'])]
+    #[Route('/{id}', name: 'app_utilisateur_delete', methods: ['DELETE'])]
 
     public function delete(int $id, UtilisateurRepository $utilisateurRepository, EntityManagerInterface $entityManager): JsonResponse
     {
@@ -384,8 +431,11 @@ final class UtilisateurController extends AbstractController
         if (!preg_match($emailRegex, $value)) {
         // Vérifie si l'email respecte le format attendu
 
-            return $this->errorResponse("Format d'email non valide.", Response::HTTP_BAD_REQUEST);
-            // Retourne une erreur JSON, code HTTP 400
+            $erreur = "Format d'email non valide.";
+            //Message d’erreur
+
+            return null;
+            // Arrête la fonction → email invalide
         }
         return $value; 
     }
@@ -430,8 +480,11 @@ final class UtilisateurController extends AbstractController
         if (!preg_match($telephoneRegex, $value)) {
         // Vérifie si le numéro correspond au format attendu
 
-            return $this->errorResponse('Le format non valide.', Response::HTTP_BAD_REQUEST);
-            // Retourne une erreur JSON, code HTTP 400
+            $erreur = 'Le format non valide.';
+            //Message d’erreur
+ 
+            return null;
+            // Arrête la fonction → téléphone invalide
         }
         return $value;
     }
@@ -510,8 +563,11 @@ final class UtilisateurController extends AbstractController
         if (strlen($value) < $minLength) {
         // Vérifie si le mot de passe est trop court
 
-            return $this->errorResponse('Le mot de passe doit contenir au moins 8 caractères.', Response::HTTP_BAD_REQUEST);
-            // Retourne une erreur JSON, code HTTP 400
+            $erreur = 'Le mot de passe doit contenir au moins 8 caractères.';
+            //Message d’erreur
+ 
+            return null;
+            // Arrête la fonction → téléphone invalide
         }
 
         $mdpRegex = '/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).+$/';
@@ -524,8 +580,11 @@ final class UtilisateurController extends AbstractController
         if (!preg_match($mdpRegex, $value)) {
         // Vérifie si le mot de passe respecte le format 
 
-            return $this->errorResponse('Le mot de passe doit contenire une minuscule, une majuscule, une chiffre et un caractère spécial.', Response::HTTP_BAD_REQUEST);
-            // Retourne une erreur JSON, code HTTP 400
+            $erreur = 'Le mot de passe doit contenir une minuscule, une majuscule, une chiffre et un caractère spécial.';
+            //Message d’erreur
+ 
+            return null;
+            // Arrête la fonction → téléphone invalide
         }
         return $value; 
     }
@@ -546,7 +605,7 @@ final class UtilisateurController extends AbstractController
             // "id" → clé du tableau
             // $user->getId() → récupère l’identifiant de l'utilisateur
 
-            "role"=>$utilisateur->getRole(),
+            "role"=>$utilisateur->getRole()?->value,
 
             "nom"=>$utilisateur->getNom(),
             // Récupère le nom de l'utilisateur
@@ -563,8 +622,9 @@ final class UtilisateurController extends AbstractController
             "telephone"=>$utilisateur->getTelephone(),
             // Récupère le télephone de l'utilisateur
 
-            "statut_d_inscription"=>$utilisateur->getStatutInscription()
+            "statut_d_inscription"=>$utilisateur->getStatutInscription()?->value,
             // Récupère le statut de l'inscription
+
         ];
         // Le tableau est retourné
     }
