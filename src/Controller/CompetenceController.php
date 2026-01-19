@@ -4,7 +4,6 @@ namespace App\Controller;
 
 use App\Entity\Competence;
 use App\Enum\CategorieCompetence;
-use App\Form\CompetenceType;
 use App\Repository\CompetenceRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -23,36 +22,46 @@ final class CompetenceController extends AbstractController
     {
         $competences = array_map(
         fn(Competence $competence) => $this->serialiserCompetence($competence),
-        // transforme chaque departement en index de tableau grâce à la méthode serialiserDepartement()
+        // transforme chaque competence en index de tableau grâce à la méthode serialiserCompetence()
 
         $competenceRepository->findAll()
-        // récupère tous les departement en base de données
+        // récupère tous les compétences en base de données
         );
         return $this->json($competences);
-        // renvoie la réponse au format JSON
+        // Retourne la liste des compétences au format JSON
     }
 //! ============================== CREER UNE NOUVELLE COMPETENCE ==============================================================================================
 
-    #[Route('/new', name: 'app_competence_new', methods: ['GET', 'POST'])]
-    public function new(Request $request, EntityManagerInterface $entityManager): JsonResponse
+    #[Route('', name: 'app_competence_create', methods: ['POST'])]
+    public function create(Request $request, EntityManagerInterface $entityManager): JsonResponse
     {
         $data = $this->decodeJson($request);
-        // lit le JSON envoyé par le client
+        // Lecture et décodage du JSON envoyé par le client
 
         if ($data === null) {
             return $this->errorResponse('JSON invalide.', Response::HTTP_BAD_REQUEST);
+            // JSON invalide ou mal formé
         }
 
-        $nom = trim((string) ($data["nom"] ?? ""));
+        $nom = trim((string) ($data["nom"] ?? ''));
+        // Récupération du nom de la compétence
+        if ($nom === '') {
+            return $this->errorResponse('Le nom est obligatoire.', Response::HTTP_BAD_REQUEST);
+            // Le nom ne peut pas être vide
+        }
 
-        $categorie = CategorieCompetence::tryFrom($data['categorie_competence']);
+        $categorie = CategorieCompetence::tryFrom($data['categorie_competence'] ?? null);
+        // Conversion de la valeur reçue en ENUM CategorieCompetence
+        // tryFrom retourne null si la valeur ne correspond à aucun cas de l’ENUM
         if (!$categorie) {
-            return $this->errorResponse('Categorie de competence est invalide.',Response::HTTP_BAD_REQUEST);
+            return $this->errorResponse('Categorie de competence invalide.',Response::HTTP_BAD_REQUEST);
+             // La catégorie envoyée ne correspond pas à l’ENUM
         }
 
         $competence = (new Competence())
         ->setNom($nom)
         ->setCategorie($categorie); 
+        // Création de l’entité Competence avec un ENUM valide
     
 
         $entityManager->persist($competence);
@@ -62,7 +71,7 @@ final class CompetenceController extends AbstractController
         // exécute l’insertion
 
         return $this->json($this->serialiserCompetence($competence), Response::HTTP_CREATED);
-        // renvoie le code HTTP 201 (création réussie)
+        // Retourne la compétence créée avec le code HTTP 201
     }
 
 //! =========================================== AFFICHER UNE COMPETENCE ==============================================================================================
@@ -70,60 +79,84 @@ final class CompetenceController extends AbstractController
     public function show(int $id, CompetenceRepository $competenceRepository): JsonResponse
     {
         $competence = $competenceRepository->find($id);
+        // Recherche de la compétence par son identifiant
         
         if (!$competence) {
-            return $this->errorResponse('Compétence non trouvé.', Response::HTTP_NOT_FOUND);
+            return $this->errorResponse('Compétence non trouvée.', Response::HTTP_NOT_FOUND);
+            // Aucune compétence trouvée → erreur 404
         }
 
        return $this->json($this->serialiserCompetence($competence));
+       // Retourne la compétence trouvée
     }
 
 //! ========================================= MODIFIER UNE COMPETENCE ==============================================================================================
-    #[Route('/{id}/edit', name: 'app_competence_edit', methods: ['GET', 'POST'])]
-    public function edit(int $id, Request $request, CompetenceRepository $competenceRepository, EntityManagerInterface $entityManager): JsonResponse
+    #[Route('/{id}', name: 'app_competence_update', methods: ['PUT', 'PATCH'])]
+    public function update(int $id, Request $request, CompetenceRepository $competenceRepository, EntityManagerInterface $entityManager): JsonResponse
     {
         $competence = $competenceRepository->find($id);
+        // Recherche de la compétence à modifier
+
         if (!$competence) {
             return $this->errorResponse('Compétence non trouvé.', Response::HTTP_NOT_FOUND);
+            // Compétence inexistante → erreur 404
         }
 
         $data = $this->decodeJson($request);
+        // Lecture et décodage du JSON
         if ($data === null) {
             return $this->errorResponse('JSON invalide.', Response::HTTP_BAD_REQUEST);
+            // JSON invalide
         }
 
         $isPut = $request ->getMethod() === "PUT";
+        // PUT → tous les champs obligatoires
+        // PATCH → seulement les champs fournis
 
+        //? ====================================== NOM =====================================================
         if (array_key_exists('nom', $data) || $isPut) {
             $nom = trim((string) ($data['nom'] ?? ''));
             if ($nom === '') {
                 return $this->errorResponse('Le nom est obligatoire.', Response::HTTP_BAD_REQUEST);
+                // En PUT ou si présent → le nom ne peut pas être vide
             }
             $competence->setNom($nom);
+            // Mise à jour du nom
         }
 
-         if (array_key_exists('categorie', $data) || $isPut) {
-            $categorie = trim((string) ($data['categorie'] ?? ''));
-            if ($categorie === '') {
-                return $this->errorResponse('La catégorie est obligatoire.', Response::HTTP_BAD_REQUEST);
+        //?? ====================================== CATEGORIE =====================================================
+          if (array_key_exists('categorie_competence', $data) || $isPut) {
+
+            $categorie = CategorieCompetence::tryFrom(
+                $data['categorie_competence'] ?? null
+            );
+
+            if (!$categorie) {
+                return $this->errorResponse('Catégorie de compétence invalide.',Response::HTTP_BAD_REQUEST);
+                // La valeur ne correspond à aucun cas de l’ENUM
             }
+
             $competence->setCategorie($categorie);
+            // Mise à jour de la catégorie avec un ENUM valide
         }
 
         $entityManager->flush();
-        // Enregistre les modifications en base de données
+        // Enregistre les modifications en base
 
         return $this->json($this->serialiserCompetence($competence));
+        // Retourne la compétence mise à jour
     }
 
 //! ==================================== SUPPRIMER UNE COMPETENCE ==============================================================================================
-    #[Route('/{id}', name: 'app_competence_delete', methods: ['POST'])]
+    #[Route('/{id}', name: 'app_competence_delete', methods: ['DELETE'])]
     public function delete(int $id, CompetenceRepository $competenceRepository, EntityManagerInterface $entityManager): JsonResponse
     {
      $competence = $competenceRepository->find($id);
+     // Recherche de la compétence à supprimer
 
         if (!$competence) {
             return $this->errorResponse('Compétence non trouvé.', Response::HTTP_NOT_FOUND);
+            // Si la compétence n’existe pas → erreur 404
         }
 
         $entityManager->remove($competence);
@@ -133,7 +166,9 @@ final class CompetenceController extends AbstractController
         // exécute la suppression
 
         return $this->json(null, Response::HTTP_NO_CONTENT);
+        // Retourne un code 204 (suppression réussie)
     }
+
 //! ================================ TRANSFORMATION D'UN OBJET Competence EN TABLEAU SIMPLE POUR JSON ==============================================================================================
 
     private function serialiserCompetence(Competence $competence): array
@@ -142,10 +177,13 @@ final class CompetenceController extends AbstractController
         // On renvoie un tableau PHP
 
             "id"=>$competence->getId(),
+            // Identifiant de la compétence
 
             "nom"=>$competence->getNom(),
+            // Nom de la compétence
 
             "categorie"=>$competence->getCategorie()->value
+            // Valeur string de l’ENUM
 
         ];
         // Le tableau est retourné
