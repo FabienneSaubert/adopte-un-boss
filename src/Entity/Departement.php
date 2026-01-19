@@ -16,8 +16,8 @@ class Departement
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\Column(type: Types::SMALLINT)]
-    private ?int $numero = null;
+    #[ORM\Column(length: 3, unique:true)]
+    private ?string $numero = null;
 
     #[ORM\Column(length: 60)]
     private ?string $nom = null;
