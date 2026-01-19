@@ -80,13 +80,13 @@ final class CandidatureController extends AbstractController
         $dateEnvoi = new \DateTimeImmutable();
 
         // Si une date personnalisée est fournie
-        if (isset($data['date_envoi'])) {
-            try {
-                $dateEnvoi = new \DateTimeImmutable($data['date_envoi']);
-            } catch (\Exception $e) {
-                return $this->errorResponse('Format invalide', Response::HTTP_BAD_REQUEST);
-            }
-        }
+        // if (isset($data['date_envoi'])) {
+        //     try {
+        //         $dateEnvoi = new \DateTimeImmutable($data['date_envoi']);
+        //     } catch (\Exception $e) {
+        //         return $this->errorResponse('Format invalide', Response::HTTP_BAD_REQUEST);
+        //     }
+        // }
 
         // Création de la candidature
         $candidature = (new Candidature())
