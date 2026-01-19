@@ -16,7 +16,7 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/api/selection/competence')]
 final class SelectionCompetenceController extends AbstractController
 {
-    #[Route('', name: 'app_selection_competence_list', methods: ['GET'])]
+    #[Route('', name: 'api_selection_competence_get_collection', methods: ['GET'])]
     public function list(SelectionCompetenceRepository $selectionCompetenceRepository): JsonResponse
     {
         $selectionCompetences = array_map(
@@ -28,7 +28,7 @@ final class SelectionCompetenceController extends AbstractController
         return $this->json($selectionCompetences);
     }
 
-    #[Route('', name: 'app_selection_competence_new', methods: ['POST'])]
+    #[Route('', name: 'api_selection_competence_post_collection', methods: ['POST'])]
     public function new(
         Request $request,
         EntityManagerInterface $entityManager,
@@ -96,7 +96,7 @@ final class SelectionCompetenceController extends AbstractController
         return $this->json($this->serializeSelectionCompetence($selectionCompetence), Response::HTTP_CREATED);
     }
 
-    #[Route('/{id}', name: 'app_selection_competence_show', methods: ['GET'])]
+    #[Route('/{id}', name: 'api_selection_competence_get_item', methods: ['GET'])]
     public function show(int $id, SelectionCompetenceRepository $selectionCompetenceRepository): JsonResponse
     {
         $selectionCompetence = $selectionCompetenceRepository->find($id);
@@ -151,7 +151,7 @@ final class SelectionCompetenceController extends AbstractController
     }
 
     // Supprimer une compétence selectionnée
-    #[Route('/{id}', name: 'app_selection_competence_delete', methods: ['DELETE'])]
+    #[Route('/{id}', name: 'api_selection_competence_delete_item', methods: ['DELETE'])]
     public function delete(
         int $id,
         SelectionCompetenceRepository $selectionCompetenceRepository,
@@ -171,7 +171,7 @@ final class SelectionCompetenceController extends AbstractController
     }
 
     //Récupérer toutes les compétences pour une offre
-    #[Route('/offre/{offreId}', name: 'app_selection_competence_by_offre', methods: ['GET'])]
+    #[Route('/offre/{offreId}', name: 'api_selection_competence_by_offre', methods: ['GET'])]
     public function getByOffre(int $offreId, SelectionCompetenceRepository $selectionCompetenceRepository): JsonResponse
     {
         $selections = array_map(
