@@ -45,11 +45,14 @@ final class CompetenceController extends AbstractController
 
         $nom = trim((string) ($data["nom"] ?? ""));
 
-        $categorie = trim((string) ($data["categorie"] ?? ""));
+        $categorie = CategorieCompetence::tryFrom($data['categorie_competence']);
+        if (!$categorie) {
+            return $this->errorResponse('Categorie de competence est invalide.',Response::HTTP_BAD_REQUEST);
+        }
 
         $competence = (new Competence())
         ->setNom($nom)
-        ->setCategorie($categorie); //!   ?????????????   
+        ->setCategorie($categorie); 
     
 
         $entityManager->persist($competence);
@@ -142,7 +145,7 @@ final class CompetenceController extends AbstractController
 
             "nom"=>$competence->getNom(),
 
-            "categorie"=>$competence->getCategorie()
+            "categorie"=>$competence->getCategorie()->value
 
         ];
         // Le tableau est retourné
