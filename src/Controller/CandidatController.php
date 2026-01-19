@@ -82,7 +82,7 @@ final class CandidatController extends AbstractController
             return $this->errorResponse('Utilisateur non trouvé', Response::HTTP_NOT_FOUND);
         }
 
-        // Vérifier si l'utilisateur n'est pas déjà associé à un 
+        // Vérifier si l'utilisateur n'est pas déjà associé à un candidat
         $candidatExistant = $candidatRepository->findOneBy(['utilisateur' => $utilisateur]);
         if ($candidatExistant) {
             return $this->errorResponse("Cet utilisateur est déjà associé à un candidat", Response::HTTP_CONFLICT);
