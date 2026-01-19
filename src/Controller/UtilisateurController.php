@@ -76,10 +76,10 @@ final class UtilisateurController extends AbstractController
 
 //! ==================================================== CREER UN NOUVEAU UTILISATEUR ==============================================================================================
 
-    #[Route('/new', name: 'app_utilisateur_new', methods: ['GET', 'POST'])]
+    #[Route('', name: 'app_utilisateur_create', methods: ['POST'])]
     // Route /new → pour créer un utilisateur via GET ou POST
 
-    public function new(Request $request, EntityManagerInterface $entityManager): JsonResponse
+    public function create(Request $request, EntityManagerInterface $entityManager): JsonResponse
     {
         $data = $this->decodeJson($request);
         // lit le JSON envoyé par le client
@@ -190,8 +190,8 @@ final class UtilisateurController extends AbstractController
 //! ==================================================== MODIFIER UN UTILISATEUR ==============================================================================================
 
 
-    #[Route('/{id}/edit', name: 'app_utilisateur_edit', methods: ['PUT', 'PATCH'])]
-    public function edit(int $id, Request $request, UtilisateurRepository $utilisateurRepository, EntityManagerInterface $entityManager): JsonResponse
+    #[Route('/{id}', name: 'app_utilisateur_update', methods: ['PUT', 'PATCH'])]
+    public function update(int $id, Request $request, UtilisateurRepository $utilisateurRepository, EntityManagerInterface $entityManager): JsonResponse
     // $id → id de l'utilisateur à modifier
     // $request → données envoyées par le client
     // $userRepository → accès à la base de données
@@ -622,7 +622,7 @@ final class UtilisateurController extends AbstractController
             "telephone"=>$utilisateur->getTelephone(),
             // Récupère le télephone de l'utilisateur
 
-            "statut_d_inscription"=>$utilisateur->getStatutInscription()?->value,
+            "statut_inscription"=>$utilisateur->getStatutInscription()?->value,
             // Récupère le statut de l'inscription
 
         ];
