@@ -16,7 +16,7 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/api/candidature')]
 final class CandidatureController extends AbstractController
 {
-    #[Route('', name: 'app_candidature_list', methods: ['GET'])]
+    #[Route('', name: 'api_candidature_get_collection', methods: ['GET'])]
     public function list(CandidatureRepository $candidatureRepository): JsonResponse
     {
         // Récupération du tableau d'objet "Candidatures" ezt serialisation pour chaque index du tableau
@@ -29,7 +29,7 @@ final class CandidatureController extends AbstractController
         return $this->json($candidatures);
     }
 
-    #[Route('', name: 'app_candidature_new', methods: ['POST'])]
+    #[Route('', name: 'api_candidature_post_collection', methods: ['POST'])]
     public function new(
         Request $request,
         EntityManagerInterface $entityManager,
@@ -101,7 +101,7 @@ final class CandidatureController extends AbstractController
         return $this->json($this->serializeCandidature($candidature), Response::HTTP_CREATED);
     }
 
-    #[Route('/{id}', name: 'app_candidature_show', methods: ['GET'])]
+    #[Route('/{id}', name: 'api_candidature_get_item', methods: ['GET'])]
     public function show(int $id, CandidatureRepository $candidatureRepository): JsonResponse
     {
         $candidature = $candidatureRepository->find($id);
@@ -113,7 +113,7 @@ final class CandidatureController extends AbstractController
         return $this->json($this->serializeCandidature($candidature));
     }
 
-    #[Route('/{id}', name: 'app_candidature_edit', methods: ['PATCH', 'PUT'])]
+    #[Route('/{id}', name: 'api_candidature_put_item', methods: ['PATCH', 'PUT'])]
     public function edit(
         int $id,
         Request $request,
@@ -154,7 +154,7 @@ final class CandidatureController extends AbstractController
         return $this->json($this->serializeCandidature($candidature));
     }
 
-    #[Route('/{id}', name: 'app_candidature_delete', methods: ['DELETE'])]
+    #[Route('/{id}', name: 'api_candidature_delete_item', methods: ['DELETE'])]
     public function delete(
         int $id,
         CandidatureRepository $candidatureRepository,
@@ -173,7 +173,7 @@ final class CandidatureController extends AbstractController
     }
 
     // Récupérer toutes les candidatures d'un candidat
-    #[Route('/candidat/{candidatId}', name: 'app_candidature_by_candidat', methods: ['GET'])]
+    #[Route('/candidat/{candidatId}', name: 'api_candidature_by_candidat', methods: ['GET'])]
     public function getByCandidatId(int $candidatId, CandidatureRepository $candidatureRepository): JsonResponse
     {
         $candidatures = array_map(
