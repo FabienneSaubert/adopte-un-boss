@@ -72,10 +72,10 @@ final class OffreController extends AbstractController
             $salaire = null;
         }
 
-        $niveauEtudessError = null;
-        $niveauEtudess = $this->parseNiveauEtudes((string) ($data["niveau_etudes"] ?? null), true, $niveauEtudessError);
-        if ($niveauEtudess === null) {
-            return $this->errorResponse($niveauEtudessError ?? "Le niveau d'études n'est pas valide.", Response::HTTP_BAD_REQUEST);
+        $niveauEtudesError = null;
+        $niveauEtudes = $this->parseNiveauEtudes((string) ($data["niveau_etudes"] ?? null), true, $niveauEtudesError);
+        if ($niveauEtudes === null) {
+            return $this->errorResponse($niveauEtudesError ?? "Le niveau d'études n'est pas valide.", Response::HTTP_BAD_REQUEST);
         }
 
         $coeffNiveauEtudesError = null;
@@ -84,9 +84,15 @@ final class OffreController extends AbstractController
             return $this->errorResponse($coeffNiveauEtudesError ?? "Le coefficient du niveau d'études n'est pas valide.", Response::HTTP_BAD_REQUEST);
         }
 
-        // Le télétravail possible étant seulement un booléen, la vérification est beaucoup plus simple
-        // On choisi ici de le mettre à true si on reçoit une valeur et qu'elle est à 1, sinon false
-        $teletravailPossible = (bool) ($data["teletravail_possible"] ?? "0") === "1" ? true : false;
+        // Le télétravail possible étant seulement un booléen, la vérification est beaucoup plus simple.
+        // On vérifie simplement si l'attribut a été défini dans la requête, et qu'il s'agit bien d'un booléen
+        if (!isset($data["teletravail_possible"])) {
+            return $this->errorResponse("Le champ teletravail_possible est requis.", Response::HTTP_BAD_REQUEST);
+        }
+        if (!is_bool($data["teletravail_possible"])) {
+            return $this->errorResponse("Le champ teletravail_possible doit être un booléen.", Response::HTTP_BAD_REQUEST);
+        }
+        $teletravailPossible = $data["teletravail_possible"];
 
         $coeffdepartementError = null;
         $coeffdepartement = $this->parseCoeffDepartement((string) ($data["coeff_departement"] ?? null), true, $coeffdepartementError);
@@ -103,25 +109,35 @@ final class OffreController extends AbstractController
         // On met le nombre de vues à 0 par défaut
         $nombredevues = 0;
 
-        // ==================== SOLUTION TEMPORAIRE ====================
-        // On utilise par défaut afin que les contraintes relationnelles en base de données soient respectées,
-        // à corriger plus tard en accord avec la partie Recruteur et Departement avec des Factory.
-        $recruteur = $recruteurRepository->find(1);
-        $departement = $departementRepository->find(1);
-        if (!$recruteur || !$departement) {
-            return $this->errorResponse(
-                "Département ou entreprise par défaut introuvable.",
-                Response::HTTP_INTERNAL_SERVER_ERROR
-            );
+        // Récupération du N° de département, depuis un <select> du formulaire envoyé par le client
+        $numeroDepartementError = null;
+        $numeroDepartement = $this->parseNumeroDepartement((string) ($data["numero_departement"] ?? null), true, $numeroDepartementError);
+        if ($numeroDepartement === null) {
+            return $this->errorResponse($numeroDepartementError ?? "Le N° de département n'est pas valide.", Response::HTTP_BAD_REQUEST);
         }
-        // =============================================================
+        $departement = $departementRepository->findOneBy(['numero' => $numeroDepartement]);
+        if ($departement === null) {
+            return $this->errorResponse("Le N° de département est introuvable en base de données.", Response::HTTP_BAD_REQUEST);
+        }
+
+        // Récuperation de l'ID du recruteur
+        // Celui-ci est censé être recupéré depuis le serveur, via la session PHP ou un cookie du
+        // recruteur connecté, on utilise une valeur attribuable depuis la requête pour le moment.
+        if (!isset($data["recruteur_id"])) {
+            return $this->errorResponse("L'ID du recruteur est requis.", Response::HTTP_BAD_REQUEST);
+        }
+        $recruteurID = (int) $data["recruteur_id"];
+        $recruteur = $recruteurRepository->find($recruteurID);
+        if ($recruteur === null) {
+            return $this->errorResponse("Le recruteur introuvable en base de données.", Response::HTTP_BAD_REQUEST);
+        }
 
         $offre = (new Offre())
             ->setCategorieOffre($categorieOffre)
             ->setIntitule($intitule)
             ->setDescription($description)
             ->setSalaire($salaire)
-            ->setNiveauEtudes($niveauEtudess)
+            ->setNiveauEtudes($niveauEtudes)
             ->setCoeffNiveauEtudes($coeffNiveauEtudes)
             ->setTeletravailPossible($teletravailPossible)
             ->setCoeffDepartement($coeffdepartement)
@@ -246,8 +262,11 @@ final class OffreController extends AbstractController
         // Pour l'update, on vérifie simplement la présence de l'attribut dans la requête
         if (isset($data["teletravail_possible"])) {
             // Si c'est le cas, on valide de la même façon
-            $teletravailPossible = (bool) ($data["teletravail_possible"] ?? "0") === "1" ? true : false;
+            if (!is_bool($data["teletravail_possible"])) {
+                return $this->errorResponse("Le champ teletravail_possible doit être un booléen.", Response::HTTP_BAD_REQUEST);
+            }
             // Puis on met à jour
+            $teletravailPossible = $data["teletravail_possible"];
             $offre->setTeletravailPossible($teletravailPossible);
         }
 
@@ -311,14 +330,18 @@ final class OffreController extends AbstractController
     {
         return [
             "id" => $offre->getId(),
-            "categorie_offre" => $offre->getCategorieOffre() ,
-            "intitule" => $offre->getIntitule() ,
-            "description" => $offre->getDescription() ,
-            "salaire" => $offre->getSalaire() ,
-            "niveau_etudes" => $offre->getNiveauEtudes() ,
-            "coeff_niveau_etudes" => $offre->getCoeffNiveauEtudes() ,
-            "teletravail_possible" => $offre->isTeletravailPossible() ,
-            "coeff_departement" => $offre->getCoeffDepartement() ,
+            "categorie_offre" => $offre->getCategorieOffre(),
+            "intitule" => $offre->getIntitule(),
+            "description" => $offre->getDescription(),
+            "salaire" => $offre->getSalaire(),
+            "niveau_etudes" => $offre->getNiveauEtudes(),
+            "coeff_niveau_etudes" => $offre->getCoeffNiveauEtudes(),
+            "teletravail_possible" => $offre->isTeletravailPossible(),
+            "coeff_departement" => $offre->getCoeffDepartement(),
+            "departement" => [
+                "numero" => $offre->getDepartement()->getNumero(),
+                "nom" => $offre->getDepartement()->getNom()
+            ],
             "recruteur" => [
                 "poste" => $offre->getRecruteur()->getPoste(),
                 "email_pro" => $offre->getRecruteur()->getEmailPro(),
@@ -326,17 +349,15 @@ final class OffreController extends AbstractController
                 "utilisateur" => [
                     "nom" => $offre->getRecruteur()->getUtilisateur()->getNom(),
                     "prenom" => $offre->getRecruteur()->getUtilisateur()->getPrenom(),
-                    // ... à valider en groupe
                 ],
                 "entreprise" => [
                     "nom" => $offre->getRecruteur()->getEntreprise()->getNom(),
                     "siret" => $offre->getRecruteur()->getEntreprise()->getSiret(),
-                    // ... à valider en groupe
                 ],
             ],
-            "date_de_publication" => $offre->getDateDePublication() ,
-            "statut_offre" => $offre->getStatutOffre() ,
-            "nombre_de_vues" => $offre->getNombreDeVues() ,
+            "date_de_publication" => $offre->getDateDePublication(),
+            "statut_offre" => $offre->getStatutOffre(),
+            "nombre_de_vues" => $offre->getNombreDeVues(),
         ];
     }
 
@@ -362,24 +383,13 @@ final class OffreController extends AbstractController
             return null;
         }
 
-        // Conversion de la catégorie string en type CategorieOffre
-        if ($value === "Informatique / Numérique") return CategorieOffre::INFORMATIQUE;
-        if ($value === "Bâtiment") return CategorieOffre::BATIMENT;
-        if ($value === "Recherche / Science") return CategorieOffre::SCIENCE;
-        if ($value === "Industrie") return CategorieOffre::INDUSTRIE;
-        if ($value === "Logistique / Transport") return CategorieOffre::LOGISTIQUE;
-        if ($value === "Commerce / Vente") return CategorieOffre::COMMERCE;
-        if ($value === "Communication / Marketing") return CategorieOffre::COMMUNICATION;
-        if ($value === "Gestion / Finance") return CategorieOffre::FINANCE;
-        if ($value === "Ressources humaines") return CategorieOffre::RH;
-        if ($value === "Droit") return CategorieOffre::DROIT;
-        if ($value === "Design") return CategorieOffre::DESIGN;
-        if ($value === "Santé / Social") return CategorieOffre::SANTE;
-        if ($value === "Hôtellerie / Restauration / Tourisme") return CategorieOffre::HOTELLERIE;
-        if ($value === "Agriculture") return CategorieOffre::AGRICULTURE;
-        if ($value === "Artisanat") return CategorieOffre::ARTISANAT;
+        // Pour la validation de l'enum, on utilise la méthode statique tryFrom()
+        // qui va vérifier la présence du string dans l'enum
+        $value = CategorieOffre::tryFrom($value);
+        // S'il n'y a aucun résultat, c'est que la catégorie est invalide
+        if (!$value) return null;
 
-        return null;
+        return $value;
     }
 
     private function parseIntitule(mixed $value, bool $required, ?string &$error)
@@ -464,15 +474,13 @@ final class OffreController extends AbstractController
             return null;
         }
 
-        // Conversion du niveau d'études string en type NiveauEtude
-        if ($value === "Sans diplôme") return NiveauEtude::SANS_DIPLOME;
-        if ($value === "BEP/CAP") return NiveauEtude::BEP_CAP;
-        if ($value === "BAC") return NiveauEtude::BAC;
-        if ($value === "BAC +2 - BTS/DUT") return NiveauEtude::BAC_2;
-        if ($value === "BAC +3 - Licence") return NiveauEtude::BAC_3;
-        if ($value === "BAC +5 - Master") return NiveauEtude::BAC_5;
+        // Pour la validation de l'enum, on utilise la méthode statique tryFrom()
+        // qui va vérifier la présence du string dans l'enum
+        $value = NiveauEtude::tryFrom($value);
+        // S'il n'y a aucun résultat, c'est que le niveau d'études est invalide
+        if (!$value) return null;
 
-        return null;
+        return $value;
     }
 
     private function parseCoeffNiveauEtudes(mixed $value, bool $required, ?string &$error)
@@ -504,6 +512,25 @@ final class OffreController extends AbstractController
         }
 
         // Si tout est valide, on retourne le coefficient du niveau d'études
+        return $value;
+    }
+
+    private function parseNumeroDepartement(mixed $value, bool $required, ?string &$error)
+    {
+        $value = trim($value);
+
+        if ($value === null || $value === '') {
+            if ($required) {
+                $error = "Le N° de département est requis.";
+            }
+            return null;
+        }
+
+        if (mb_strlen($value) > 3) {
+            $error = "Le N° de département ne peut pas dépasser 3 caractères.";
+            return null;
+        }
+
         return $value;
     }
 
@@ -550,12 +577,13 @@ final class OffreController extends AbstractController
             return null;
         }
 
-        // Conversion du statut de l'offre string en type StatutOffre
-        if ($value === "En attente") return StatutOffre::EN_ATTENTE;
-        if ($value === "Accepté") return StatutOffre::ACCEPTE;
-        if ($value === "Refusé") return StatutOffre::REFUSE;
+        // Pour la validation de l'enum, on utilise la méthode statique tryFrom()
+        // qui va vérifier la présence du string dans l'enum
+        $value = StatutOffre::tryFrom($value);
+        // S'il n'y a aucun résultat, c'est que le statut de l'offre est invalide
+        if (!$value) return null;
 
-        return null;
+        return $value;
     }
 
     private function errorResponse(string $message, int $status): JsonResponse
