@@ -183,7 +183,7 @@ final class CandidatController extends AbstractController
         if (array_key_exists('cv', $data)) {
             $candidat->setCv($data['cv']);
         }
-// GESTION DES COLLECTTIONS 
+
         // Mise à jour du niveau d'études
         if (array_key_exists('niveau_etude', $data)) {
             try {
