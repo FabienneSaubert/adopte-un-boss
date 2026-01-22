@@ -16,6 +16,15 @@ use App\Entity\Entreprise;
 // obtenir la liste de tous les entreprise, c'est à ce moment-là que les requêtes en base de données seront préparées.
 use App\Repository\EntrepriseRepository;
 
+// On importe le parser de l'entité Entreprise qui contient toutes les méthodes de validation et de
+// formatage des attributs d'une entreprise. Le parser s'occupe donc dans ce cas de valider puis
+// attribuer les donneés venant du client.
+use App\Parser\EntrepriseInputParser;
+
+// On importe le factory de l'entité Entreprise qui va permettre de déplacer ailleurs l'instanciation
+// d'un nouvel objet Entreprise au quel on va attribuer des valeurs avec les setter
+use App\Factory\EntrepriseFactory;
+
 // On inclut l'interface ORM qui va permettre la communication entre PHP et la base de données.
 // Doctrine permet de manipuler n'importe quel type de base de données, les commandes utilisées avec ce dernier s'adaptent
 // à l'architecture de la base de données.
@@ -71,10 +80,17 @@ final class EntrepriseController extends AbstractController
     /**
      * Permet d'ajouter une nouvelle entreprise.
      * @param Request $request requête envoyée par le client
+     * @param EntrepriseInputParser $entrepriseInputParser parser de l'entité Entreprise
+     * @param EntrepriseFactory $entrepriseFactory factory de l'entité Entreprise
      * @param EntityManagerInterface $entityManager moteur Doctrine pour écrire en base
      * @return JsonResponse réponse JSON avec le entreprise créé (ou une erreur)
      */
-    public function new(Request $request, EntityManagerInterface $entityManager): JsonResponse
+    public function new(
+        Request $request,
+        EntrepriseInputParser $entrepriseInputParser,
+        EntrepriseFactory $entrepriseFactory,
+        EntityManagerInterface $entityManager
+    ): JsonResponse
     {
         // On décode le JSON contenu dans le body de la requête.
         // Le JSON contenu dans la requête n'est pas immédiatement lisible par PHP (il s'agit d'un blob de données),
@@ -82,67 +98,20 @@ final class EntrepriseController extends AbstractController
         // en tableau lisible par PHP.
         $data = $this->decodeJson($request);
 
-        // On prépare le message pour une éventuelle erreur de nom
-        // (qui sera remplie plus tard par le parser pour faire de la gestion d'erreur).
-        $nomError = null;
-
-        // Pour la validation du nom d'une entreprise, on utilise la méthode privée utilitaire parseNom()
-        // qui nous permet de récupérer un nom correctement défini.
-        // On envoit donc le nom contenu à l'index "nom" dans le tableau $data, ou null s'il n'est pas défini, formaté en string,
-        // puis le fait que le nom doit être défini (required=true),
-        // ainsi que l'adresse mémoire de la variable $nomError, afin que la méthode privée puisse écrire sa valeur.
-        $nom = $this->parseNom((string) ($data["nom"] ?? null), true, $nomError);
-
-        // Si le nom n'a pas été correctement validé, on renvoie une erreur.
-        if ($nom === null) {
-            // On retourne une erreur spécifique au nom.
-            return $this->errorResponse($nomError ?? "Le nom n'est pas valide.", Response::HTTP_BAD_REQUEST);
+        // On valide puis on formatte les données contenues dans le tableau associatif $data venant du client
+        // grâce à notre parser. On s'attend à un éventuel message d'erreur que la méthode validate()
+        // peut nous renvoyer, on stocke alors la valeur de ce message.
+        $errorMessage = $entrepriseInputParser->validate($data);
+        // Si ce n'est pas la valeur null qui a été renvoyée, c'est que la méthode n'a pas pu
+        // s'exécuter jusqu'au bout, et qu'il y a donc forcément eu une erreur.
+        if ($errorMessage !== null) {
+            // On renvoit donc cette fois-ci au client l'erreur en JSON
+            return $this->errorResponse($errorMessage, Response::HTTP_BAD_REQUEST);
         }
 
-        // On prépare le message pour une éventuelle erreur de N° de SIRET
-        // (qui sera remplie plus tard par le parser pour faire de la gestion d'erreur).
-        $siretError = null;
-
-        // Pour la validation du N° de SIRET d'une entreprise, on utilise la méthode privée utilitaire parseSiret()
-        // qui nous permet de récupérer un N° de SIRET correctement défini.
-        // On envoit donc le N° de SIRET contenu à l'index 'siret' dans le tableau $data, ou null s'il n'est pas défini,
-        // puis le fait que le N° de SIRET doit être défini (required=true),
-        // ainsi que l'adresse mémoire de la variable $siretError, afin que la méthode privée puisse écrire sa valeur.
-        $siret = $this->parseSiret($data["siret"] ?? null, true, $siretError);
-
-        // Si le N° de SIRET n'a pas été correctement validé, on renvoie une erreur.
-        if ($siret === null) {
-            // On retourne une erreur spécifique au N° de SIRET.
-            return $this->errorResponse($siretError ?? "N° de SIRET invalide.", Response::HTTP_BAD_REQUEST);
-        }
-
-        // On prépare le message pour une éventuelle erreur d'adresse
-        // (qui sera remplie plus tard par le parser pour faire de la gestion d'erreur).
-        $adresseError = null;
-
-        // Pour la validation de l'adresse d'une entreprise, on utilise la méthode privée utilitaire parseAdresse()
-        // qui nous permet de récupérer un adresse correctement défini.
-        // On envoit donc l'adresse contenu à l'index 'adresse' dans le tableau $data, ou null s'il n'est pas défini,
-        // puis le fait que l'adresse doit être défini (required=true),
-        // ainsi que l'adresse mémoire de la variable $adresseError, afin que la méthode privée puisse écrire sa valeur.
-        $adresse = $this->parseAdresse($data["adresse"] ?? null, true, $adresseError);
-
-        // Si l'adresse n'a pas été correctement validé, on renvoie une erreur.
-        if ($adresse === null) {
-            // On retourne une erreur spécifique au adresse.
-            return $this->errorResponse($adresseError ?? "Adresse invalide.", Response::HTTP_BAD_REQUEST);
-        }
-
-        // On crée une nouvelle instance de l'entité Entreprise.
-        $entreprise = (new Entreprise())
-            // On fixe le nom avec le setter correspondant
-            ->setNom($nom)
-            // Le N° de SIRET
-            ->setSiret($siret)
-            // Puis l'adresse
-            ->setAdresse($adresse);
-        // Comme chaque setter renvoi la classe Entreprise, on peut immédiatement utiliser
-        // un autre setter, ce qui permet de faire du chainage de méthode.
+        // Une fois que les champs contenus dans data sont validés et formatés,
+        // on peut demander la création d'une nouvelle entreprise à notre factory
+        $entreprise = $entrepriseFactory->create($data);
 
         // A ce moment précis, on va demander de préserver la valeur de l'objet de la nouvelle entreprise.
         // Cette valeur sera ajoutée en base de données à la table Entreprise correspondante.
@@ -152,7 +121,7 @@ final class EntrepriseController extends AbstractController
         // donc dans notre cas l'ajout de la nouvelle entreprise à la base de données.
         $entityManager->flush();
 
-        // On retourne le entreprise créé sous forme JSON sérialisée.
+        // On retourne l'entreprise créé sous forme JSON sérialisée.
         return $this->json($this->serializeEntreprise($entreprise), Response::HTTP_CREATED);
     }
 
@@ -187,11 +156,18 @@ final class EntrepriseController extends AbstractController
      * Permet de mettre à jour les informations d'un entreprise
      * @param int $id ID du entreprise à mettre à jour
      * @param Request $request requête envoyée par le client
+     * @param EntrepriseInputParser $entrepriseInputParser parser de l'entité Entreprise
      * @param EntrepriseRepository $entrepriseRepository repository pour lire le entreprise à modifier
      * @param EntityManagerInterface $entityManager moteur Doctrine pour écrire les changements
      * @return JsonResponse réponse JSON du entreprise modifié (ou erreur)
      */
-    public function edit(int $id, Request $request, EntrepriseRepository $entrepriseRepository, EntityManagerInterface $entityManager): JsonResponse
+    public function edit(
+        int $id,
+        Request $request,
+        EntrepriseInputParser $entrepriseInputParser,
+        EntrepriseRepository $entrepriseRepository,
+        EntityManagerInterface $entityManager
+    ): JsonResponse
     {
         // On récupère le entreprise en base.
         $entreprise = $entrepriseRepository->find($id);
@@ -203,11 +179,6 @@ final class EntrepriseController extends AbstractController
 
         // On décode le body de la requête HTTP du client en tableau associatif PHP
         $data = $this->decodeJson($request);
-        // Si le décodage a échoué
-        if ($data === null) {
-            // On retourne une erreur au client
-            return $this->errorResponse("Données dans le JSON body invalides.", Response::HTTP_BAD_REQUEST);
-        }
 
         // On récupère le nom depuis le JSON la requête (null si non défini)
         $nom = (string) ($data["nom"] ?? null);
@@ -219,7 +190,7 @@ final class EntrepriseController extends AbstractController
             $nomError = null;
     
             // On utilise notre paseur de la même façon afin de valider la donnée
-            $nom = $this->parseNom($nom, false, $nomError);
+            $nom = $entrepriseInputParser->parseNom($nom, false, $nomError);
     
             // Si le nom a été correctement validé
             if ($nom !== null) {
@@ -242,7 +213,7 @@ final class EntrepriseController extends AbstractController
             $siretError = null;
     
             // On utilise notre paseur de la même façon afin de valider la donnée
-            $siret = $this->parseSiret($siret, false, $siretError);
+            $siret = $entrepriseInputParser->parseSiret($siret, false, $siretError);
     
             // Si le N° de SIRET a été correctement validé
             if ($siret !== null) {
@@ -265,7 +236,7 @@ final class EntrepriseController extends AbstractController
             $adresseError = null;
     
             // On utilise notre paseur de la même façon afin de valider la donnée
-            $adresse = $this->parseAdresse($adresse, false, $adresseError);
+            $adresse = $entrepriseInputParser->parseAdresse($adresse, false, $adresseError);
     
             // Si l'adresse a été correctement validé
             if ($adresse !== null) {
@@ -360,118 +331,6 @@ final class EntrepriseController extends AbstractController
 
         // Si le JSON est valide, on retourne le tableau contenant les données du entreprise.
         return $payload;
-    }
-
-    /**
-     * Permet de valider et normaliser le nom d’un entreprise.
-     * Cette méthode s'assure que le nom de l'entreprise envoyée par le client
-     * est bien compris entre 1 et 60 caractères.
-     * 
-     * @param mixed $value Valeur brute reçue (souvent une string venant du JSON)
-     * @param bool $required Indique si le nom est obligatoire (true pour création, false pour édition)
-     * @param mixed $error Variable passée par référence pour contenir le message d’erreur éventuel
-     * @return string|null nom formaté ou null en cas d’erreur
-     */
-    private function parseNom(mixed $value, bool $required, ?string &$error)
-    {
-        // On effectue un nettoyage au préalable en enlevant les éventuels espaces avant et après
-        $value = trim($value);
-
-        // Si le nom est absent ou vide
-        if ($value === null || $value === '') {
-            // Si l'adresse est obligatoire (cas d’une nouvelle entreprise),
-            // on définit un message d’erreur explicite.
-            if ($required) {
-                $error = "Le nom est requis.";
-            }
-
-            // On retourne null pour indiquer que le nom n’est pas valide.
-            return null;
-        }
-
-        // Si la taille du nom est au dessus de la limite fixée en base de données
-        // On utilise le préfixe "mb_" afin de prévoir les chaînes de caractères multi-octets
-        if (mb_strlen($value) > 60) {
-            $error = "Le nom ne peut pas dépasser 60 caractères.";
-            return null;
-        }
-
-        // On retourne le nom
-        return $value;
-    }
-
-    /**
-     * Permet de valider et normaliser le N° de SIRET d’un entreprise.
-     * Cette méthode s’assure que le N° de SIRET envoyé par le client est bien valide.
-     *
-     * @param mixed $value Valeur brute reçue (souvent une string venant du JSON)
-     * @param bool $required Indique si le N° de SIRET est obligatoire (true pour création, false pour édition)
-     * @param mixed $error Variable passée par référence pour contenir le message d’erreur éventuel
-     * @return string|null N° de SIRET formaté ou null en cas d’erreur
-     */
-    private function parseSiret(mixed $value, bool $required, ?string &$error): ?string
-    {
-        // Si la valeur est absente ou vide (par exemple N° de SIRET non envoyé dans le JSON)
-        if ($value === null || $value === '') {
-            // Si le N° de SIRET est obligatoire (cas d’une nouvelle entreprise),
-            // on définit un message d’erreur explicite.
-            if ($required) {
-                $error = "Le N° de SIRET est requis.";
-            }
-
-            // On retourne null pour indiquer que le N° de SIRET n’est pas valide.
-            return null;
-        }
-
-        // On enlève tous les espaces dans le numéro afin de pouvoir correctement valider sa taille après
-        $value = str_replace(' ','',$value);
-
-        // Si la taille est exactement celle d'un N° de SIRET
-        if (!is_numeric($value) || strlen($value) !== 14) {
-            $error = "Le N° de SIRET doit faire exactement 14 chiffres.";
-            return null;
-        }
-
-        // Si tout est valide, on retourne le N° de SIRET formaté
-        return $value;
-    }
-
-    /**
-     * Permet de valider et normaliser l'adresse d’un entreprise.
-     * Cette méthode s'assure que l'adresse de l'entreprise envoyée par le client
-     * est bien compris entre 1 et 60 caractères.
-     * 
-     * @param mixed $value Valeur brute reçue (souvent une string venant du JSON)
-     * @param bool $required Indique si l'adresse est obligatoire (true pour création, false pour édition)
-     * @param mixed $error Variable passée par référence pour contenir le message d’erreur éventuel
-     * @return string|null adresse formaté ou null en cas d’erreur
-     */
-    private function parseAdresse(mixed $value, bool $required, ?string &$error)
-    {
-        // On effectue un nettoyage au préalable en enlevant les éventuels espaces avant et après
-        $value = trim($value);
-
-        // Si l'adresse est absente ou vide
-        if ($value === null || $value === '') {
-            // Si l'adresse est obligatoire (cas d’une nouvelle entreprise),
-            // on définit un message d’erreur explicite.
-            if ($required) {
-                $error = "L'adresse est requise.";
-            }
-
-            // On retourne null pour indiquer que l'adresse n’est pas valide.
-            return null;
-        }
-
-        // Si la taille du adresse est au dessus de la limite fixée en base de données
-        // On utilise le préfixe "mb_" afin de prévoir les chaînes de caractères multi-octets
-        if (mb_strlen($value) > 100) {
-            $error = "L'adresse ne peut pas dépasser les 100 caractères.";
-            return null;
-        }
-
-        // On retourne l'adresse
-        return $value;
     }
 
     /**
