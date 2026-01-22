@@ -58,7 +58,7 @@ final class UtilisateurController extends AbstractController
 
 //! ==================================================== LISTE DES UTILISATEURS ==============================================================================================
 
-    #[Route(name: 'app_utilisateur_index', methods: ['GET'])]
+    #[Route(name: 'api_utilisateur_get_collection', methods: ['GET'])]
     // crée une route GET pour lister tous les produits
     public function index(UtilisateurRepository $utilisateurRepository): JsonResponse
     {
@@ -76,7 +76,7 @@ final class UtilisateurController extends AbstractController
 
 //! ==================================================== CREER UN NOUVEAU UTILISATEUR ==============================================================================================
 
-    #[Route('', name: 'app_utilisateur_create', methods: ['POST'])]
+    #[Route('', name: 'api_utilisateur_post_collection', methods: ['POST'])]
     // Route /new → pour créer un utilisateur via GET ou POST
 
     public function create(Request $request, EntityManagerInterface $entityManager): JsonResponse
@@ -167,7 +167,7 @@ final class UtilisateurController extends AbstractController
 //! ==================================================== AFFICHER UN UTILISATEUR ==============================================================================================
 
 
-    #[Route('/{id}', name: 'app_utilisateur_show', methods: ['GET'])]
+    #[Route('/{id}', name: 'api_utilisateur_get_item', methods: ['GET'])]
     // Route /utilisateur/{id} → pour afficher un utilisateur précis
 
 
@@ -190,7 +190,7 @@ final class UtilisateurController extends AbstractController
 //! ==================================================== MODIFIER UN UTILISATEUR ==============================================================================================
 
 
-    #[Route('/{id}', name: 'app_utilisateur_update', methods: ['PUT', 'PATCH'])]
+    #[Route('/{id}', name: 'api_utilisateur_put_item', methods: ['PUT', 'PATCH'])]
     public function update(int $id, Request $request, UtilisateurRepository $utilisateurRepository, EntityManagerInterface $entityManager): JsonResponse
     // $id → id de l'utilisateur à modifier
     // $request → données envoyées par le client
@@ -368,7 +368,7 @@ final class UtilisateurController extends AbstractController
 //! ==================================================== SUPPRIMER UN PRODUIT ==============================================================================================
 
 
-    #[Route('/{id}', name: 'app_utilisateur_delete', methods: ['DELETE'])]
+    #[Route('/{id}', name: 'api_utilisateur_delete_item', methods: ['DELETE'])]
 
     public function delete(int $id, UtilisateurRepository $utilisateurRepository, EntityManagerInterface $entityManager): JsonResponse
     {
