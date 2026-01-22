@@ -9,6 +9,11 @@ use App\Enum\RoleUtilisateur;
 use App\Enum\StatutInscription;
 // permet d’utiliser l’entité Utilisateur, c’est-à-dire la classe PHP qui représente une table dans la base de données
 
+use App\Parser\UtilisateurInputParser;
+// On importe le parser de l'entité Utilisateur qui contient toutes les méthodes de validation et de
+// formatage des attributs d'un utilisateur. Le parser s'occupe donc dans ce cas de valider puis
+// attribuer les donneés venant du client.
+
 use App\Repository\UtilisateurRepository;
 // Un repository est une classe qui sert à interroger la base de données pour une entité spécifique (ici User)
 // permet de chercher, filtrer et récupérer les produits en base de données facilement
@@ -46,7 +51,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 
 
 
-#[Route('/utilisateur')]
+#[Route('/api/utilisateur')]
 // C’est une annotation qui définit une route principale pour ce contrôleur
 // /utilisateur → c’est le préfixe de toutes les routes dans ce contrôleur
 
@@ -79,7 +84,11 @@ final class UtilisateurController extends AbstractController
     #[Route('', name: 'api_utilisateur_post_collection', methods: ['POST'])]
     // Route /new → pour créer un utilisateur via GET ou POST
 
-    public function create(Request $request, EntityManagerInterface $entityManager): JsonResponse
+    public function create(
+        Request $request,
+        UtilisateurInputParser $utilisateurInputParser,
+        EntityManagerInterface $entityManager
+    ): JsonResponse
     {
         $data = $this->decodeJson($request);
         // lit le JSON envoyé par le client
@@ -88,68 +97,29 @@ final class UtilisateurController extends AbstractController
             return $this->errorResponse('JSON invalide.', Response::HTTP_BAD_REQUEST);
         }
 
-        $role = RoleUtilisateur::tryFrom($data['role_utilisateur']);
-        // TryFrom = méthode pour énum, permet de comparer l'entrée avec les valeurs présentes dans
-        // l'enum niveau_etude. Si match -> retourne une instance, sinon retourne null;
-        // Ici, je compare la valeur de la requête à la valeur "niveau_etude" avec les enum possible
-        // On s'assure que l'entrée utilisateur soit bonne et non null.
-        if (!$role) {
-            return $this->errorResponse('Rôle utilisateur invalide.',Response::HTTP_BAD_REQUEST);
+        $errorMessage = $utilisateurInputParser->validate($data);
+        if ($errorMessage !== null) {
+            return $this->errorResponse($errorMessage, Response::HTTP_BAD_REQUEST);
         }
-
-        $nom = trim((string) ($data["nom"] ?? ""));
-        // récupère le nom et supprime les espaces inutiles
-
-        $prenom = trim((string) ($data["prenom"] ?? ""));
-        // récupère le prénom et supprime les espaces inutiles
-
-        $emailErreur = null;
-        $email = $this->verifEmail($data['email'] ?? null, true, $emailErreur);
-        if($email === null){
-            return $this->errorResponse($emailErreur ?? "Email est obligatoire", Response::HTTP_BAD_REQUEST);
-        }
-      
-        $naissanceErreur = null;
-        $dateDeNaissance = $this->verifDateNaissance($data['date_de_naissance'] ?? null, true, $naissanceErreur);
-        if($dateDeNaissance === null){
-            return $this->errorResponse($naissanceErreur ?? "Date de naissance est obligatoire", Response::HTTP_BAD_REQUEST);
-        }
-
-        $telephoneErreur = null;
-        $telephone = $this->verifTelephone($data['telephone'] ?? null, true, $telephoneErreur);
-        // Vérifie que le téléphone : existe
-        //                           est un string
-        //                           respecte le format attendu → le regex
-        if($telephone === null){
-            return $this->errorResponse($telephoneErreur ?? "Telephone est obligatoire", Response::HTTP_BAD_REQUEST);
-        }
-
-        $mdpErreur = null;
-        $mdp_hash = $this->verifMdp($data['mot_de_passe'] ?? null, true, $mdpErreur);
-        // Vérifie que le mot de passe : existe
-        //                              est un string
-        //                              respecte le format attendu → le regex
-        if($mdp_hash === null){
-            return $this->errorResponse($mdpErreur ?? "Mot de passe est obligatoire", Response::HTTP_BAD_REQUEST);
-        }
-        $hashedMdp = password_hash($mdp_hash, PASSWORD_BCRYPT);
-        // Hash le mot de passe avec l'algorithme BCRYPT pour le stocker de manière sécurisée
+        // On utilise ici la validation et le formattage des données Utilisateur grâce à notre UtilisateurInputParser
 
         $statut_inscription = StatutInscription::tryFrom($data['statut_inscription']);
         if (!$statut_inscription) {
             return $this->errorResponse("Statut d'inscription invalide.",Response::HTTP_BAD_REQUEST);
         }
+        // Le statut d'inscription ne peut être définit que dans ce contrôleur,
+        // car il est forcément définit par défaut en "En attente", pour la création d'un Candidat ou d'un Recruteur
 
         $utilisateur = (new Utilisateur())
         // crée un nouvel objet utilisateur
 
-        ->setPrenom($prenom)
-        ->setNom($nom)
-        ->setEmail($email)
-        ->setDateDeNaissance($dateDeNaissance)
-        ->setTelephone($telephone)
-        ->setMdpHash($hashedMdp)
-        ->setRole($role)
+        ->setPrenom($data["prenom"])
+        ->setNom($data["nom"])
+        ->setEmail($data["email"])
+        ->setDateDeNaissance($data["date_de_naissance"])
+        ->setTelephone($data["telephone"])
+        ->setMdpHash($data["mdp_hash"])
+        ->setRole($data["role"])
         ->setStatutInscription($statut_inscription);
 
         // remplit les propriétés de l'utilisateur
@@ -191,9 +161,16 @@ final class UtilisateurController extends AbstractController
 
 
     #[Route('/{id}', name: 'api_utilisateur_put_item', methods: ['PUT', 'PATCH'])]
-    public function update(int $id, Request $request, UtilisateurRepository $utilisateurRepository, EntityManagerInterface $entityManager): JsonResponse
+    public function update(
+        int $id,
+        Request $request,
+        UtilisateurInputParser $utilisateurInputParser,
+        UtilisateurRepository $utilisateurRepository,
+        EntityManagerInterface $entityManager
+    ): JsonResponse
     // $id → id de l'utilisateur à modifier
     // $request → données envoyées par le client
+    // $utilisateurInputParser → accès aux méthodes de parsing
     // $userRepository → accès à la base de données
     // $entityManager → sauvegarde les modifications
     // JsonResponse → réponse en JSON
@@ -265,7 +242,7 @@ final class UtilisateurController extends AbstractController
             $emailErreur = null;
             // Variable pour stocker une erreur
 
-            $email = $this->verifEmail($data['email'] ?? null, true, $emailErreur);
+            $email = $utilisateurInputParser->verifEmail($data['email'] ?? null, true, $emailErreur);
             // Vérifie que l'email : existe
             //                       est un string
             //                       respecte le format attendu → le regex
@@ -289,7 +266,7 @@ final class UtilisateurController extends AbstractController
             $naissanceErreur = null;
             // Variable pour stocker une erreur
 
-            $dateDeNaissance = $this->verifDateNaissance($data['date_de_naissance'] ?? null, true, $naissanceErreur);
+            $dateDeNaissance = $utilisateurInputParser->verifDateNaissance($data['date_de_naissance'] ?? null, true, $naissanceErreur);
 
             if ($dateDeNaissance === null) {
                 // Vérifie si la date de naissance est vide
@@ -309,7 +286,7 @@ final class UtilisateurController extends AbstractController
             $telephoneErreur = null;
             // Variable pour stocker une erreur
 
-            $telephone = $this->verifTelephone($data['telephone'] ?? null, true, $telephoneErreur);
+            $telephone = $utilisateurInputParser->verifTelephone($data['telephone'] ?? null, true, $telephoneErreur);
             // Vérifie que le téléphone : existe
             //                            est un string
             //                            respecte le format attendu → le regex
@@ -339,7 +316,7 @@ final class UtilisateurController extends AbstractController
         // Si le champ mot de passe est envoyé OU si c’est un PUT (donc obligatoire)
 
             $mdpErreur = null;
-            $mdp_hash = $this->verifMdp($data['mot_de_passe'] ?? null, true, $mdpErreur);
+            $mdp_hash = $utilisateurInputParser->verifMdp($data['mot_de_passe'] ?? null, true, $mdpErreur);
             // Vérifie que le mot de passe : existe
             //                              est un string
             //                              respecte le format attendu → le regex
@@ -387,206 +364,6 @@ final class UtilisateurController extends AbstractController
 
         return $this->json(null, Response::HTTP_NO_CONTENT);
         // Renvoie une réponse sans contenu, code HTTP 204 → suppression réussie, aucun JSON à afficher   
-    }
-
-//! ================================================= LES FONCTIONS UTILITAIRES ==================================================================================================================================
-
-    //? ================================================ VERIFICATION DE EMAIL ===================================================================================================================================
-    private function verifEmail(mixed $value, bool $required, ?string &$erreur): ?string
-    // private → utilisée seulement dans ce contrôleur
-    // verifEmail → sert à vérifier l'email
-    // $value → l'email reçu (peut être n’importe quoi)
-    // $required → indique si l'email est obligatoire
-    // &$erreur → variable pour stocker un message d’erreur
-    // : ?string → retourne un texte ou null
-    {
-        if ($value === null || $value === ''){
-        // Vérifie si l'email est absent ou vide
-
-            if ($required){
-                $erreur = 'Email est obligatoire.';
-                // Si l'email' est obligatoire → message d’erreur
-            }
-            return null;
-            // Arrête la fonction → email invalide
-        }
-
-        if (!is_string($value)){
-            // Si l'email n'est pas un string
-
-            $erreur = "Email n'est pas valide.";
-            //Message d’erreur
-
-            return null;
-            // Arrête la fonction → email invalide
-        }
-
-        $emailRegex = '/^[^\s@]+@[^\s@]+\.[^\s@]+$/';
-        // Regex pour email
-        //        Vérifie la présence : - d'un texte avant le @
-        //                              - d'un @
-        //                              - d'un nom de domaine
-        //                              - d'un point et d'une extension
-
-        if (!preg_match($emailRegex, $value)) {
-        // Vérifie si l'email respecte le format attendu
-
-            $erreur = "Format d'email non valide.";
-            //Message d’erreur
-
-            return null;
-            // Arrête la fonction → email invalide
-        }
-        return $value; 
-    }
-
-    //? ================================================ VERIFICATION DE TELEPHONE ===================================================================================================================================
-
-    private function verifTelephone(mixed $value, bool $required, ?string &$erreur): ?string
-    // private → utilisée seulement dans ce contrôleur
-    // verifTelephone → sert à vérifier le télephone
-    // $value → le téléphone reçu (peut être n’importe quoi)
-    // $required → indique si le téléphone est obligatoire
-    // &$erreur → variable pour stocker un message d’erreur
-    // : ?string → retourne un texte ou null
-
-    {
-        if($value === null || $value === ''){
-        // Vérifie si le téléphone est absent ou vide
-            
-            if ($required){
-                $erreur = "Téléphone est obligatoire.";
-            // Si le téléphone est obligatoire → message d'erreur
-            }
-
-            return null;
-            // Arrête la fonction → téléphone invalide
-        }
-
-        if (!is_string($value)){
-        // Si le téléphone n'est pas un string
-
-            $erreur = 'Téléphone doit contenir des chiffres.';
-            //Message d’erreur
- 
-            return null;
-            // Arrête la fonction → téléphone invalide
-        }
-
-        $telephoneRegex = '/^(?:\+33|0)[67]\d{8}$/';
-        // Regex numéro de téléphone français
-        // Accepte les numéros : 06XXXXXXXX, 07XXXXXXXX, +336XXXXXXXX, +337XXXXXXXX
-
-        if (!preg_match($telephoneRegex, $value)) {
-        // Vérifie si le numéro correspond au format attendu
-
-            $erreur = 'Le format non valide.';
-            //Message d’erreur
- 
-            return null;
-            // Arrête la fonction → téléphone invalide
-        }
-        return $value;
-    }
-
-    //? ==================================== VERIFICATION DE LA DATE DE NAISSANCE ===================================================================================================================================
-
-    private function verifDateNaissance(mixed $value, bool $required, ?string &$erreur): ?\DateTimeImmutable
-    {
-        if ($value === null || $value === '') {
-            // Vérifie si la date est absente ou vide
-
-            if ($required) {
-                $erreur = 'Date de naissance est obligatoire.';
-            }
-
-            return null;
-        }
-
-        if (!is_string($value)) {
-            // Si la date n'est pas une chaîne
-
-            $erreur = 'Date de naissance invalide.';
-            return null;
-        }
-
-        try {
-            $date = new \DateTimeImmutable($value);
-        } catch (\Exception $e) {
-            $erreur = 'Format de date invalide (YYYY-MM-DD).';
-            return null;
-        }
-
-        // Empêche une date future
-        if ($date > new \DateTimeImmutable()) {
-            $erreur = 'La date de naissance ne peut pas être dans le futur.';
-            return null;
-        }
-        return $date;
-    }
-
-
-    //? ==================================== VERIFICATION DE MOT DE PASSE ===================================================================================================================================
-    private function verifMdp(mixed $value, bool $required, ?string &$erreur): ?string
-    // private → utilisée seulement dans ce contrôleur
-    // verifMdp → sert à vérifier le mot de passe
-    // $value → le mot de passe reçu (peut être n’importe quoi)
-    // $required → indique si le mot de passe est obligatoire
-    // &$erreur → variable pour stocker un message d’erreur
-    // : ?string → retourne un texte ou null
-    {
-        if($value === null || $value === ''){
-        // Vérifie si le mot de passe est absent ou vide
-
-            if ($required) {
-                $erreur = 'Mot de passe est obligatoire.';
-            // Si le mot de passe est obligatoire → message d’erreur
-            }
- 
-            return null;
-            // Arrête la fonction → mot de passe invalide
-        }
-
-        if (!is_string($value)){
-        // Si l'email n'est pas un string
-
-            $erreur = "Mot de passe n'est pas valide.";
-            //Message d’erreur
-
-            return null;
-            // Arrête la fonction → email invalide
-        }
-
-        $minLength = 8;
-        // Définit la longueur minimale requise
-
-        if (strlen($value) < $minLength) {
-        // Vérifie si le mot de passe est trop court
-
-            $erreur = 'Le mot de passe doit contenir au moins 8 caractères.';
-            //Message d’erreur
- 
-            return null;
-            // Arrête la fonction → téléphone invalide
-        }
-
-        $mdpRegex = '/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).+$/';
-        // Regex de sécurité du mot de passe
-        //              Vérifie que le mot de passe contient :  - au moins une minuscule
-        //                                                      - au moins une majuscule
-        //                                                      - au moins un chiffre
-        //                                                      - au moins un caractère spécial
-
-        if (!preg_match($mdpRegex, $value)) {
-        // Vérifie si le mot de passe respecte le format 
-
-            $erreur = 'Le mot de passe doit contenir une minuscule, une majuscule, une chiffre et un caractère spécial.';
-            //Message d’erreur
- 
-            return null;
-            // Arrête la fonction → téléphone invalide
-        }
-        return $value; 
     }
 
     //? ================================ TRANSFORMATION D'UN OBJET User EN TABLEAU SIMPLE POUR JSON ==============================================================================================
