@@ -33,13 +33,14 @@ final class CandidatController extends AbstractController
 
     #[Route('', name: 'api_candidat_post_collection', methods: ['POST'])]
     public function new(
-        Request $request, 
-        EntityManagerInterface $entityManager, 
-        CandidatRepository $candidatRepository ): JsonResponse
-    {
+        Request $request,
+        EntityManagerInterface $entityManager,
+        CandidatRepository $candidatRepository
+    ): JsonResponse {
+        
         $data = $this->decodeJson($request);
 
-        if ($data === null) { // $data === null plus sécurisé que !$data
+        if (!$data) { // $data === null plus sécurisé que !$data ?
             return $this->errorResponse('JSON invalide', Response::HTTP_BAD_REQUEST);
         }
 
@@ -150,11 +151,11 @@ final class CandidatController extends AbstractController
 
     #[Route('/{id}', name: 'api_candidat_put_item', methods: ['PATCH', 'PUT'])]
     public function edit(
-        int $id, 
-        Request $request, 
-        CandidatRepository $candidatRepository, 
-        EntityManagerInterface $entityManager ): JsonResponse
-    {
+        int $id,
+        Request $request,
+        CandidatRepository $candidatRepository,
+        EntityManagerInterface $entityManager
+    ): JsonResponse {
         $candidat = $candidatRepository->find($id);
 
         if (!$candidat) {
@@ -197,9 +198,9 @@ final class CandidatController extends AbstractController
         // Mise à jour du niveau d'études
         if (array_key_exists('niveau_etude', $data)) {
 
-                $niveauEtude = NiveauEtude::tryFrom($data['niveau_etude']);
-                $candidat->setNiveauEtude($niveauEtude);
-       
+            $niveauEtude = NiveauEtude::tryFrom($data['niveau_etude']);
+            $candidat->setNiveauEtude($niveauEtude);
+
             if (!$niveauEtude) {
                 return $this->errorResponse('Valeur de niveau_etude invalide', Response::HTTP_BAD_REQUEST);
             }
@@ -220,7 +221,7 @@ final class CandidatController extends AbstractController
 
             // Ajouter les nouvelles compétences
             foreach ($data['competence_ids'] as $competenceId) {
-                $competence = $entityManager->getRepository(Competence::class)->find($competenceId); 
+                $competence = $entityManager->getRepository(Competence::class)->find($competenceId);
                 // Méthode plus concise :  $competence = $entityManager->find(Competence::class, $competenceId); 
                 if ($competence) {
                     $candidat->addCompetence($competence);
@@ -235,7 +236,7 @@ final class CandidatController extends AbstractController
             if ($data['departement_id'] === null) {
                 $candidat->setDepartement(null);
             } else {
-                $departement = $entityManager->find(Departement::class,$data['departement_id']); // Méthode plus concise
+                $departement = $entityManager->find(Departement::class, $data['departement_id']); // Méthode plus concise
                 if ($departement) {
                     $candidat->setDepartement($departement);
                 } else {

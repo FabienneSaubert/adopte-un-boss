@@ -28,7 +28,7 @@ class Utilisateur
     #[ORM\Column(length: 100, unique: true)]
     private ?string $email = null;
 
-    #[ORM\Column(type: Types::DATE_MUTABLE, nullable: true)]
+    #[ORM\Column(type: Types::DATE_IMMUTABLE, nullable: true)]
     private ?\DateTimeImmutable $date_de_naissance = null;
 
     #[ORM\Column(length: 12, nullable: true)]
