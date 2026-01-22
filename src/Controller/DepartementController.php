@@ -17,7 +17,7 @@ final class DepartementController extends AbstractController
 
 //! ======================================== LISTE DES DEPARTEMENTS ==============================================================================================
 
-    #[Route(name: 'app_departement_index', methods: ['GET'])]
+    #[Route(name: 'api_departement_get_collection', methods: ['GET'])]
     public function index(DepartementRepository $departementRepository): JsonResponse
     {
         $departements = array_map(
@@ -33,7 +33,7 @@ final class DepartementController extends AbstractController
 
 //! ============================== CREER UN NOUVEAU DEPARTEMENT ==============================================================================================
 
-    #[Route('', name: 'app_departement_create', methods: ['POST'])]
+    #[Route('', name: 'api_departement_post_collection', methods: ['POST'])]
     public function create(Request $request, EntityManagerInterface $entityManager): JsonResponse
     {
      $data = $this->decodeJson($request);
@@ -84,7 +84,7 @@ final class DepartementController extends AbstractController
 //! =========================================== AFFICHER UN DEPARTEMENT ==============================================================================================
 
 
-    #[Route('/{id}', name: 'app_departement_show', methods: ['GET'])]
+    #[Route('/{id}', name: 'api_departement_get_item', methods: ['GET'])]
     public function show(int $id, DepartementRepository $departementRepository): JsonResponse
     {
        $departement = $departementRepository->find($id);
@@ -102,7 +102,7 @@ final class DepartementController extends AbstractController
 //! ========================================= MODIFIER UN DEPARTEMENT ==============================================================================================
 
 
-    #[Route('/{id}', name: 'app_departement_update', methods: ['PUT', 'PATCH'])]
+    #[Route('/{id}', name: 'api_departement_put_item', methods: ['PUT', 'PATCH'])]
     public function update(int $id, Request $request,DepartementRepository $departementRepository, EntityManagerInterface $entityManager): JsonResponse
     {
         $departement = $departementRepository->find($id);
@@ -161,7 +161,7 @@ final class DepartementController extends AbstractController
 
 //! ==================================== SUPPRIMER UN DEPARTEMENT ==============================================================================================
 
-    #[Route('/{id}', name: 'app_departement_delete', methods: ['DELETE'])]
+    #[Route('/{id}', name: 'api_departement_delete_item', methods: ['DELETE'])]
     public function delete(int $id, DepartementRepository $departementRepository, EntityManagerInterface $entityManager): JsonResponse
     {
         $departement = $departementRepository->find($id);
