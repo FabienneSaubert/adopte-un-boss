@@ -17,7 +17,7 @@ final class CompetenceController extends AbstractController
 {
 
 //! ======================================== LISTE DES COMPETENCES ==============================================================================================
-    #[Route(name: 'app_competence_index', methods: ['GET'])]
+    #[Route(name: 'api_competence_get_collection', methods: ['GET'])]
     public function index(CompetenceRepository $competenceRepository): JsonResponse
     {
         $competences = array_map(
@@ -32,7 +32,7 @@ final class CompetenceController extends AbstractController
     }
 //! ============================== CREER UNE NOUVELLE COMPETENCE ==============================================================================================
 
-    #[Route('', name: 'app_competence_create', methods: ['POST'])]
+    #[Route('', name: 'api_competence_post_collection', methods: ['POST'])]
     public function create(Request $request, EntityManagerInterface $entityManager): JsonResponse
     {
         $data = $this->decodeJson($request);
@@ -75,7 +75,7 @@ final class CompetenceController extends AbstractController
     }
 
 //! =========================================== AFFICHER UNE COMPETENCE ==============================================================================================
-    #[Route('/{id}', name: 'app_competence_show', methods: ['GET'])]
+    #[Route('/{id}', name: 'api_competence_get_item', methods: ['GET'])]
     public function show(int $id, CompetenceRepository $competenceRepository): JsonResponse
     {
         $competence = $competenceRepository->find($id);
@@ -91,7 +91,7 @@ final class CompetenceController extends AbstractController
     }
 
 //! ========================================= MODIFIER UNE COMPETENCE ==============================================================================================
-    #[Route('/{id}', name: 'app_competence_update', methods: ['PUT', 'PATCH'])]
+    #[Route('/{id}', name: 'api_competence_put_item', methods: ['PUT', 'PATCH'])]
     public function update(int $id, Request $request, CompetenceRepository $competenceRepository, EntityManagerInterface $entityManager): JsonResponse
     {
         $competence = $competenceRepository->find($id);
@@ -148,7 +148,7 @@ final class CompetenceController extends AbstractController
     }
 
 //! ==================================== SUPPRIMER UNE COMPETENCE ==============================================================================================
-    #[Route('/{id}', name: 'app_competence_delete', methods: ['DELETE'])]
+    #[Route('/{id}', name: 'api_competence_delete_item', methods: ['DELETE'])]
     public function delete(int $id, CompetenceRepository $competenceRepository, EntityManagerInterface $entityManager): JsonResponse
     {
      $competence = $competenceRepository->find($id);
