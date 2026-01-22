@@ -491,7 +491,7 @@ final class UtilisateurController extends AbstractController
 
     //? ==================================== VERIFICATION DE LA DATE DE NAISSANCE ===================================================================================================================================
 
-    private function verifDateNaissance(mixed $value, bool $required, ?string &$erreur): ?\DateTimeInterface
+    private function verifDateNaissance(mixed $value, bool $required, ?string &$erreur): ?\DateTimeImmutable
     {
         if ($value === null || $value === '') {
             // Vérifie si la date est absente ou vide
@@ -509,16 +509,16 @@ final class UtilisateurController extends AbstractController
             $erreur = 'Date de naissance invalide.';
             return null;
         }
-//! datetimeimmutable
+
         try {
-            $date = new \DateTime($value);
+            $date = new \DateTimeImmutable($value);
         } catch (\Exception $e) {
             $erreur = 'Format de date invalide (YYYY-MM-DD).';
             return null;
         }
 
         // Empêche une date future
-        if ($date > new \DateTime()) {
+        if ($date > new \DateTimeImmutable()) {
             $erreur = 'La date de naissance ne peut pas être dans le futur.';
             return null;
         }
