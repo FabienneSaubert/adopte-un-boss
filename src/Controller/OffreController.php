@@ -40,6 +40,9 @@ final class OffreController extends AbstractController
     ): JsonResponse
     {
         $data = $this->decodeJson($request);
+        if ($data === null) {
+            return $this->errorResponse("Données dans le JSON body invalides.", Response::HTTP_BAD_REQUEST);
+        }
 
         $categorieOffreError = null;
         $categorieOffre = $this->parseCategorieOffre((string) ($data["categorie_offre"] ?? null), true, $categorieOffreError);
