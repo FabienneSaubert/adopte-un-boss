@@ -3,9 +3,12 @@
 namespace App\Controller;
 
 use App\Entity\Recruteur;
+use App\Factory\EntrepriseFactory;
+use App\Factory\UtilisateurFactory;
+use App\Parser\EntrepriseInputParser;
+use App\Parser\UtilisateurInputParser;
 use App\Repository\EntrepriseRepository;
 use App\Repository\RecruteurRepository;
-use App\Repository\UtilisateurRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -30,12 +33,24 @@ final class RecruteurController extends AbstractController
     #[Route(name: 'api_recruteur_post_item', methods: ['POST'])]
     public function new(
         Request $request,
-        UtilisateurRepository $utilisateurRepository,
+        UtilisateurInputParser $utilisateurInputParser,
+        EntrepriseInputParser $entrepriseInputParser,
+        UtilisateurFactory $utilisateurFactory,
+        EntrepriseFactory $entrepriseFactory,
         EntrepriseRepository $entrepriseRepository,
         EntityManagerInterface $entityManager
     ): JsonResponse
     {
         $data = $this->decodeJson($request);
+        if ($data === null) {
+            return $this->errorResponse("Corps JSON de la requête invalide.", Response::HTTP_BAD_REQUEST);
+        }
+
+        // On utilise le parser de l'entité Utilisateur afin de valider les champs dans $data
+        $errorMessage = $utilisateurInputParser->validate($data);
+        if ($errorMessage !== null) {
+            return $this->errorResponse($errorMessage, Response::HTTP_BAD_REQUEST);
+        }
 
         $posteError = null;
         $poste = $this->parsePoste((string) ($data["poste"] ?? null), true, $posteError);
@@ -43,7 +58,7 @@ final class RecruteurController extends AbstractController
             return $this->errorResponse($posteError ?? "Le poste n'est pas valide.", Response::HTTP_BAD_REQUEST);
         }
 
-        $emailPro = (string) ($data["emailpro"] ?? null);
+        $emailPro = (string) ($data["email_pro"] ?? null);
         if ($emailPro !== null && $emailPro !== '') {
             $emailProError = null;
             $emailPro = $this->parseEmailPro($emailPro, false, $emailProError);
@@ -55,7 +70,7 @@ final class RecruteurController extends AbstractController
             $emailPro = null;
         }
 
-        $telephonePro = (string) ($data["telephonepro"] ?? null);
+        $telephonePro = (string) ($data["telephone_pro"] ?? null);
         if ($telephonePro !== null && $telephonePro !== '') {
             $telephoneProError = null;
             $telephonePro = $this->parseTelephonePro($telephonePro, false, $telephoneProError);
@@ -67,30 +82,48 @@ final class RecruteurController extends AbstractController
             $telephonePro = null;
         }
 
-        // ==================== SOLUTION TEMPORAIRE ====================
-        // On utilise par défaut afin que les contraintes relationnelles en base de données soient respectées,
-        // à corriger plus tard en accord avec la partie Utilisateur et Entreprise avec des Factory.
-        $utilisateur = $utilisateurRepository->find(1);
-        $entreprise = $entrepriseRepository->find(1);
-        if (!$utilisateur || !$entreprise) {
-            return $this->errorResponse(
-                "Utilisateur ou entreprise par défaut introuvable.",
-                Response::HTTP_INTERNAL_SERVER_ERROR
-            );
+        // On utilise le parser de l'entité Entreprise afin de valider les champs dans $data
+        $errorMessage = $entrepriseInputParser->validate($data);
+        if ($errorMessage !== null) {
+            return $this->errorResponse($errorMessage, Response::HTTP_BAD_REQUEST);
         }
-        // =============================================================
 
-        $recruteur = (new Recruteur())
-            ->setPoste($poste)
-            ->setEmailPro($emailPro)
-            ->setTelephonePro($telephonePro)
-            ->setUtilisateur($utilisateur)
-            ->setEntreprise($entreprise)
-        ;
-        // Le statut de l'envoi est déjà défini par défaut comme étant "En attente"
+        // Une fois que les champs de l'entreprise sont validés et formatés,
+        // on peut chercher si l'entreprise existe déjà, avec son N° de SIRET
+        $entrepriseExistante = $entrepriseRepository->findOneBy(['siret' => $data["siret_entreprise"]]);
+        // Si une entreprise existe déjà avec le même N° de SIRET en base de données
+        if ($entrepriseExistante) {
+            // On utilise la même entreprise (on fait le choix ici d'ignorer les autre informations
+            // que le client a renseigné sur l'entreprise, ça sera à l'admin de corriger les conflits éventuels)
+            $entreprise = $entrepriseExistante;
+        }
+        else {
+            // Si aucune entreprise existe avec le N° de SIRET envoyé, on récupère une nouvelle
+            // instance de l'entité Entreprise grâce à son factory
+            $entreprise = $entrepriseFactory->create($data);
+        }
 
+        // On attribut dans $data le champ "entreprise" qui va contenir l'instanciation,
+        // sa présence dans $data sera prise en compte dans le factory de l'utilisateur
+        $data["entreprise"] = $entreprise;
+        // On peut donc maintenant faire appel au factory de l'utilisateur, en lui passant en paramètre le bon rôle
+        $recruteur = $utilisateurFactory->create('Recruteur', $data);
+
+        // Une fois que l'on a tous les objets dont on a besoin, on peut les enregistrer en base de données
+        // 
+        // On persiste alors l'entreprise
+        $entityManager->persist($entreprise);
+        // Puis le recruteur
         $entityManager->persist($recruteur);
+        // Et pourquoi pas l'utilisateur ? Parce que Symfony le fait tout seul, via l'instruction cascade persist
+        // dans l'entité Utilisateur :
+        // 
+        // #[ORM\OneToOne(inversedBy: 'recruteur', cascade: ['persist', 'remove'])]
+        // #[ORM\JoinColumn(nullable: false)]
+        // private ?Utilisateur $utilisateur = null;
 
+        // Faire le flush va donc prendre en compte ces trois nouvelles instanciations,
+        // et les ajouter en base de données dans le bon ordre
         $entityManager->flush();
 
         return $this->json($this->serializeRecruteur($recruteur), Response::HTTP_CREATED);
@@ -134,7 +167,7 @@ final class RecruteurController extends AbstractController
             }
         }
 
-        $emailPro = (string) ($data["emailpro"] ?? null);
+        $emailPro = (string) ($data["email_pro"] ?? null);
         if ($emailPro !== null && $emailPro !== '') {
             $emailProError = null;
             $emailPro = $this->parseEmailPro($emailPro, false, $emailProError);
@@ -146,7 +179,7 @@ final class RecruteurController extends AbstractController
             }
         }
 
-        $telephonePro = (string) ($data["telephonepro"] ?? null);
+        $telephonePro = (string) ($data["telephone_pro"] ?? null);
         if ($telephonePro !== null && $telephonePro !== '') {
             $telephoneProError = null;
             $telephonePro = $this->parseTelephonePro($telephonePro, false, $telephoneProError);
@@ -184,17 +217,19 @@ final class RecruteurController extends AbstractController
         return [
             "id" => $recruteur->getId(),
             "poste" => $recruteur->getPoste(),
-            "emailPro" => $recruteur->getEmailPro(),
-            "telephonePro" => $recruteur->getTelephonePro(),
+            "email_pro" => $recruteur->getEmailPro(),
+            "telephone_pro" => $recruteur->getTelephonePro(),
             "utilisateur" => [
                 "nom" => $recruteur->getUtilisateur()->getNom(),
                 "prenom" => $recruteur->getUtilisateur()->getPrenom(),
-                // ... à valider en groupe
+                "date_de_naissance" => $recruteur->getUtilisateur()->getDateDeNaissance(),
+                "email" => $recruteur->getUtilisateur()->getEmail(),
+                "telephone" => $recruteur->getUtilisateur()->getTelephone(),
             ],
             "entreprise" => [
                 "nom" => $recruteur->getEntreprise()->getNom(),
                 "siret" => $recruteur->getEntreprise()->getSiret(),
-                // ... à valider en groupe
+                "adresse" => $recruteur->getEntreprise()->getAdresse(),
             ],
         ];
     }
