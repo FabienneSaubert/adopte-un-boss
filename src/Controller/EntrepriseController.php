@@ -97,7 +97,11 @@ final class EntrepriseController extends AbstractController
         // on utilise alors la méthode privée utilitaire decodeJson() afin de transformer ce blob de données
         // en tableau lisible par PHP.
         $data = $this->decodeJson($request);
-
+        // Si le décodage a échoué
+        if ($data === null) {
+            // On renvoit l'erreur correspondante au client
+            return $this->errorResponse("Données dans le JSON body invalides.", Response::HTTP_BAD_REQUEST);
+        }
         // On valide puis on formatte les données contenues dans le tableau associatif $data venant du client
         // grâce à notre parser. On s'attend à un éventuel message d'erreur que la méthode validate()
         // peut nous renvoyer, on stocke alors la valeur de ce message.
@@ -179,7 +183,10 @@ final class EntrepriseController extends AbstractController
 
         // On décode le body de la requête HTTP du client en tableau associatif PHP
         $data = $this->decodeJson($request);
-
+        // Puis on vérifie le résultat du décodage de la même façon
+        if ($data === null) {
+            return $this->errorResponse("Données dans le JSON body invalides.", Response::HTTP_BAD_REQUEST);
+        }
         // On récupère le nom depuis le JSON la requête (null si non défini)
         $nom = (string) ($data["nom"] ?? null);
 
