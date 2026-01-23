@@ -50,7 +50,7 @@ final class CompetenceController extends AbstractController
             // Le nom ne peut pas être vide
         }
 
-        $categorie = CategorieCompetence::tryFrom($data['categorie_competence'] ?? null);
+        $categorie = CategorieCompetence::tryFrom($data['categorie'] ?? null);
         // Conversion de la valeur reçue en ENUM CategorieCompetence
         // tryFrom retourne null si la valeur ne correspond à aucun cas de l’ENUM
         if (!$categorie) {
@@ -125,10 +125,10 @@ final class CompetenceController extends AbstractController
         }
 
         //?? ====================================== CATEGORIE =====================================================
-          if (array_key_exists('categorie_competence', $data) || $isPut) {
+          if (array_key_exists('categorie', $data) || $isPut) {
 
             $categorie = CategorieCompetence::tryFrom(
-                $data['categorie_competence'] ?? null
+                $data['categorie'] ?? null
             );
 
             if (!$categorie) {
@@ -149,6 +149,7 @@ final class CompetenceController extends AbstractController
 
 //! ==================================== SUPPRIMER UNE COMPETENCE ==============================================================================================
     #[Route('/{id}', name: 'api_competence_delete_item', methods: ['DELETE'])]
+    
     public function delete(int $id, CompetenceRepository $competenceRepository, EntityManagerInterface $entityManager): JsonResponse
     {
      $competence = $competenceRepository->find($id);
