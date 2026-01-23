@@ -50,7 +50,7 @@ final class OffreController extends AbstractController
         $intituleError = null;
         $intitule = $this->parseIntitule((string) ($data["intitule"] ?? null), true, $intituleError);
         if ($intitule === null) {
-            return $this->errorResponse($intituleError ?? "L'intitule n'est pas valide.", Response::HTTP_BAD_REQUEST);
+            return $this->errorResponse($intituleError ?? "L'intitulé n'est pas valide.", Response::HTTP_BAD_REQUEST);
         }
 
         $descriptionError = null;
@@ -129,7 +129,7 @@ final class OffreController extends AbstractController
         $recruteurID = (int) $data["recruteur_id"];
         $recruteur = $recruteurRepository->find($recruteurID);
         if ($recruteur === null) {
-            return $this->errorResponse("Le recruteur introuvable en base de données.", Response::HTTP_BAD_REQUEST);
+            return $this->errorResponse("Le recruteur est introuvable en base de données.", Response::HTTP_BAD_REQUEST);
         }
 
         $offre = (new Offre())
@@ -207,7 +207,7 @@ final class OffreController extends AbstractController
                 $offre->setIntitule($intitule);
             }
             else {
-                return $this->errorResponse($intituleError ?? "L'intitule n'est pas valide.", Response::HTTP_BAD_REQUEST);
+                return $this->errorResponse($intituleError ?? "L'intitulé n'est pas valide.", Response::HTTP_BAD_REQUEST);
             }
         }
 
@@ -243,7 +243,7 @@ final class OffreController extends AbstractController
                 $offre->setNiveauEtudes($niveauEtudes);
             }
             else {
-                return $this->errorResponse($niveauEtudesError ?? "Le niveauetude n'est pas valide.", Response::HTTP_BAD_REQUEST);
+                return $this->errorResponse($niveauEtudesError ?? "Le niveau d'études n'est pas valide.", Response::HTTP_BAD_REQUEST);
             }
         }
 
@@ -255,7 +255,7 @@ final class OffreController extends AbstractController
                 $offre->setCoeffNiveauEtude($coeffNiveauEtudes);
             }
             else {
-                return $this->errorResponse($coeffNiveauEtudesError ?? "Le coeffniveauetude n'est pas valide.", Response::HTTP_BAD_REQUEST);
+                return $this->errorResponse($coeffNiveauEtudesError ?? "Le coefficient du niveau d'études n'est pas valide.", Response::HTTP_BAD_REQUEST);
             }
         }
 
@@ -278,7 +278,7 @@ final class OffreController extends AbstractController
                 $offre->setCoeffDepartement($coeffdepartement);
             }
             else {
-                return $this->errorResponse($coeffdepartementError ?? "Le coeffdepartement n'est pas valide.", Response::HTTP_BAD_REQUEST);
+                return $this->errorResponse($coeffdepartementError ?? "Le coefficient du département n'est pas valide.", Response::HTTP_BAD_REQUEST);
             }
         }
 
@@ -398,13 +398,13 @@ final class OffreController extends AbstractController
 
         if ($value === null || $value === '') {
             if ($required) {
-                $error = "L'intitule est requis.";
+                $error = "L'intitulé est requis.";
             }
             return null;
         }
 
         if (mb_strlen($value) > 150) {
-            $error = "L'intitule ne peut pas dépasser 150 caractères.";
+            $error = "L'intitulé ne peut pas dépasser 150 caractères.";
             return null;
         }
 
