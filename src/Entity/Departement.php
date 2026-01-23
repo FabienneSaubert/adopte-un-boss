@@ -45,12 +45,12 @@ class Departement
         return $this->id;
     }
 
-    public function getNumero(): ?int
+    public function getNumero(): ?string
     {
         return $this->numero;
     }
 
-    public function setNumero(int $numero): static
+    public function setNumero(string $numero): static
     {
         $this->numero = $numero;
 
