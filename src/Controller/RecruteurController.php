@@ -43,7 +43,7 @@ final class RecruteurController extends AbstractController
     {
         $data = $this->decodeJson($request);
         if ($data === null) {
-            return $this->errorResponse("Corps JSON de la requête invalide.", Response::HTTP_BAD_REQUEST);
+            return $this->errorResponse("Données dans le JSON body invalides.", Response::HTTP_BAD_REQUEST);
         }
 
         // On utilise le parser de l'entité Utilisateur afin de valider les champs dans $data
