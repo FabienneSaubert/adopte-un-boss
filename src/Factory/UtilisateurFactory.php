@@ -30,7 +30,7 @@ class UtilisateurFactory {
         ;
 
         return match ($role) {
-            'candidat' => (new Candidat())
+            'Candidat' => (new Candidat())
                 ->setProfilVisible($data["profil_visible"])
                 ->setInfosVisibles($data["infos_visible"])
                 ->setUuid($data["uuid"])
@@ -38,7 +38,7 @@ class UtilisateurFactory {
                 ->setNiveauEtude($data["niveau_etude"])
                 ->setUtilisateur($utilisateur)
                 ,
-            'recruteur' => (new Recruteur())
+            'Recruteur' => (new Recruteur())
                 ->setPoste($data["poste"])
                 ->setEmailPro($data["email_pro"])
                 ->setTelephonePro($data["telephone_pro"])

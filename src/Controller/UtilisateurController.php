@@ -193,8 +193,8 @@ final class UtilisateurController extends AbstractController
         // vérifie si la méthode HTTP est PUT (PUT = modification complète)
 
         //?? ====================================== ROLE =====================================================
-        if (array_key_exists('role_utilisateur', $data) || $isPut) {
-            $role = RoleUtilisateur::tryFrom($data['role_utilisateur']);
+        if (array_key_exists('role', $data) || $isPut) {
+            $role = RoleUtilisateur::tryFrom($data['role']);
             if (!$role) {
                 return $this->errorResponse('Rôle invalide.', Response::HTTP_BAD_REQUEST);
             }
