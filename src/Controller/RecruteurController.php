@@ -57,6 +57,7 @@ final class RecruteurController extends AbstractController
         if ($poste === null) {
             return $this->errorResponse($posteError ?? "Le poste n'est pas valide.", Response::HTTP_BAD_REQUEST);
         }
+        $data["poste"] = $poste;
 
         $emailPro = (string) ($data["email_pro"] ?? null);
         if ($emailPro !== null && $emailPro !== '') {
@@ -69,18 +70,20 @@ final class RecruteurController extends AbstractController
         else {
             $emailPro = null;
         }
+        $data["email_pro"] = $emailPro;
 
         $telephonePro = (string) ($data["telephone_pro"] ?? null);
         if ($telephonePro !== null && $telephonePro !== '') {
             $telephoneProError = null;
             $telephonePro = $this->parseTelephonePro($telephonePro, false, $telephoneProError);
             if ($telephonePro === null) {
-                return $this->errorResponse($telephoneProError ?? "Le telephone professionnel n'est pas valide.", Response::HTTP_BAD_REQUEST);
+                return $this->errorResponse($telephoneProError ?? "Le téléphone professionnel n'est pas valide.", Response::HTTP_BAD_REQUEST);
             }
         }
         else {
             $telephonePro = null;
         }
+        $data["telephone_pro"] = $telephonePro;
 
         // On utilise le parser de l'entité Entreprise afin de valider les champs dans $data
         $errorMessage = $entrepriseInputParser->validate($data);
@@ -187,7 +190,7 @@ final class RecruteurController extends AbstractController
                 $recruteur->setTelephonePro($telephonePro);
             }
             else {
-                return $this->errorResponse($telephoneProError ?? "Le telephone professionnel n'est pas valide.", Response::HTTP_BAD_REQUEST);
+                return $this->errorResponse($telephoneProError ?? "Le téléphone professionnel n'est pas valide.", Response::HTTP_BAD_REQUEST);
             }
         }
 
@@ -298,13 +301,26 @@ final class RecruteurController extends AbstractController
 
         if ($value === null || $value === '') {
             if ($required) {
-                $error = "Le telephone professionnel est requis.";
+                $error = "Le téléphone professionnel est requis.";
             }
             return null;
         }
 
+        if (!is_string($value)){
+            $error = "Le téléphone professionnel doit contenir des chiffres.";
+            return null;
+        }
+
+        $value = str_replace(' ','',$value);
+
         if (mb_strlen($value) > 12) {
-            $error = "Le telephone professionnel ne peut pas dépasser 12 caractères.";
+            $error = "Le téléphone professionnel ne peut pas dépasser 12 caractères.";
+            return null;
+        }
+
+        $telephoneRegex = '/^(?:\+33|0)[1-9]\d{8}$/';
+        if (!preg_match($telephoneRegex, $value)) {
+            $error = "Le format du téléphone professionnel n'est pas valide.";
             return null;
         }
 
