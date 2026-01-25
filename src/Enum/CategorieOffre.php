@@ -4,7 +4,7 @@ namespace App\Enum;
 
 enum CategorieOffre: string
 {
-    case INFORMATIQUE = 'Informatique/Numérique';
+    case INFORMATIQUE = 'Informatique / Numérique';
     case BATIMENT = 'Bâtiment';
     case SCIENCE = 'Recherche / Science';
     case INDUSTRIE = 'Industrie';
