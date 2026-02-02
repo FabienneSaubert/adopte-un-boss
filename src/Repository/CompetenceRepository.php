@@ -17,7 +17,7 @@ class CompetenceRepository extends ServiceEntityRepository
     }
 
     //    /**
-    //     * @return Domaine[] Returns an array of Domaine objects
+    //     * @return Competence[] Returns an array of Competence objects
     //     */
     //    public function findByExampleField($value): array
     //    {
@@ -31,7 +31,7 @@ class CompetenceRepository extends ServiceEntityRepository
     //        ;
     //    }
 
-    //    public function findOneBySomeField($value): ?Domaine
+    //    public function findOneBySomeField($value): ?Competence
     //    {
     //        return $this->createQueryBuilder('c')
     //            ->andWhere('c.exampleField = :val')
