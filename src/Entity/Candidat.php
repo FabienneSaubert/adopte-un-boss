@@ -7,6 +7,8 @@ use App\Repository\CandidatRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+//ajout 
+use App\Entity\Competence;
 
 #[ORM\Entity(repositoryClass: CandidatRepository::class)]
 class Candidat
@@ -39,7 +41,7 @@ class Candidat
      * @var Collection<int, Competence>
      */
     #[ORM\ManyToMany(targetEntity: Competence::class, inversedBy: 'candidats')]
-    private Collection $competences;
+    private Collection $domaines;
 
     #[ORM\ManyToOne(inversedBy: 'candidats')]
     private ?Departement $departement = null;
@@ -52,7 +54,7 @@ class Candidat
 
     public function __construct()
     {
-        $this->competences = new ArrayCollection();
+        $this->domaines = new ArrayCollection();
         $this->candidatures = new ArrayCollection();
     }
 
@@ -136,23 +138,23 @@ class Candidat
     /**
      * @return Collection<int, Competence>
      */
-    public function getCompetences(): Collection
+    public function getDomaines(): Collection
     {
-        return $this->competences;
+        return $this->domaines;
     }
 
-    public function addCompetence(Competence $competence): static
+    public function addDomaine(Competence $domaine): static
     {
-        if (!$this->competences->contains($competence)) {
-            $this->competences->add($competence);
+        if (!$this->domaines->contains($domaine)) {
+            $this->domaines->add($domaine);
         }
 
         return $this;
     }
 
-    public function removeCompetence(Competence $competence): static
+    public function removeDomaine(Competence $domaine): static
     {
-        $this->competences->removeElement($competence);
+        $this->domaines->removeElement($domaine);
 
         return $this;
     }

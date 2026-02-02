@@ -1,13 +1,14 @@
 <?php
-
+ 
 namespace App\Entity;
-
-use App\Enum\CategorieCompetence;
+ 
+use App\Enum\TypeCompetence;
+use App\Enum\DomaineActivite;
 use App\Repository\CompetenceRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
-
+ 
 #[ORM\Entity(repositoryClass: CompetenceRepository::class)]
 class Competence
 {
@@ -15,60 +16,72 @@ class Competence
     #[ORM\GeneratedValue]
     #[ORM\Column]
     private ?int $id = null;
+ 
+    #[ORM\Column(enumType: TypeCompetence::class)]
+    private ?TypeCompetence $type = null;
 
-    #[ORM\Column(enumType: CategorieCompetence::class)]
-    private ?CategorieCompetence $categorie = null;
-
-    #[ORM\Column(length: 45)]
+    #[ORM\Column(enumType: DomaineActivite::class, nullable: true)]
+    private ?DomaineActivite $domaine = null;
+ 
+    #[ORM\Column(length: 255)]
     private ?string $nom = null;
-
+ 
     /**
      * @var Collection<int, Candidat>
      */
-    #[ORM\ManyToMany(targetEntity: Candidat::class, mappedBy: 'competences')]
+    #[ORM\ManyToMany(targetEntity: Candidat::class, mappedBy: 'domaines')]
     private Collection $candidats;
-
+ 
     /**
      * @var Collection<int, SelectionCompetence>
      */
-    #[ORM\OneToMany(targetEntity: SelectionCompetence::class, mappedBy: 'competence')]
+    #[ORM\OneToMany(targetEntity: SelectionCompetence::class, mappedBy: 'domaine')]
     private Collection $selectionCompetences;
-
+ 
     public function __construct()
     {
         $this->candidats = new ArrayCollection();
         $this->selectionCompetences = new ArrayCollection();
     }
-
+ 
     public function getId(): ?int
     {
         return $this->id;
     }
-
-    public function getCategorie(): ?CategorieCompetence
+ 
+    public function getType(): ?TypeCompetence
     {
-        return $this->categorie;
+        return $this->type;
     }
-
-    public function setCategorie(CategorieCompetence $categorie): static
+ 
+    public function setType(?TypeCompetence $type): static
     {
-        $this->categorie = $categorie;
-
+        $this->type = $type;
         return $this;
     }
 
+    public function getDomaine(): ?DomaineActivite
+    {
+        return $this->domaine;
+    }
+ 
+    public function setDomaine(?DomaineActivite $domaine): static
+    {
+        $this->domaine = $domaine;
+        return $this;
+    }
+ 
     public function getNom(): ?string
     {
         return $this->nom;
     }
-
+ 
     public function setNom(string $nom): static
     {
         $this->nom = $nom;
-
         return $this;
     }
-
+ 
     /**
      * @return Collection<int, Candidat>
      */
@@ -76,26 +89,24 @@ class Competence
     {
         return $this->candidats;
     }
-
+ 
     public function addCandidat(Candidat $candidat): static
     {
         if (!$this->candidats->contains($candidat)) {
             $this->candidats->add($candidat);
-            $candidat->addCompetence($this);
+            $candidat->addDomaine($this);
         }
-
         return $this;
     }
-
+ 
     public function removeCandidat(Candidat $candidat): static
     {
         if ($this->candidats->removeElement($candidat)) {
-            $candidat->removeCompetence($this);
+            $candidat->removeDomaine($this);
         }
-
         return $this;
     }
-
+ 
     /**
      * @return Collection<int, SelectionCompetence>
      */
@@ -103,26 +114,23 @@ class Competence
     {
         return $this->selectionCompetences;
     }
-
+ 
     public function addSelectionCompetence(SelectionCompetence $selectionCompetence): static
     {
         if (!$this->selectionCompetences->contains($selectionCompetence)) {
             $this->selectionCompetences->add($selectionCompetence);
-            $selectionCompetence->setCompetence($this);
+            $selectionCompetence->setDomaine($this);
         }
-
         return $this;
     }
-
+ 
     public function removeSelectionCompetence(SelectionCompetence $selectionCompetence): static
     {
         if ($this->selectionCompetences->removeElement($selectionCompetence)) {
-            // set the owning side to null (unless already changed)
-            if ($selectionCompetence->getCompetence() === $this) {
-                $selectionCompetence->setCompetence(null);
+            if ($selectionCompetence->getDomaine() === $this) {
+                $selectionCompetence->setDomaine(null);
             }
         }
-
         return $this;
     }
 }

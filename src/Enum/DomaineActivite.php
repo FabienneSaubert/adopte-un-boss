@@ -2,7 +2,7 @@
 
 namespace App\Enum;
 
-enum CategorieOffre: string
+enum DomaineActivite: string
 {
     case INFORMATIQUE = 'Informatique / Numérique';
     case BATIMENT = 'Bâtiment';
@@ -19,4 +19,5 @@ enum CategorieOffre: string
     case HOTELLERIE = 'Hôtellerie / Restauration / Tourisme';
     case AGRICULTURE = 'Agriculture';
     case ARTISANAT = 'Artisanat';
+     case ENSEIGNEMENT = 'Enseignement';
 }
