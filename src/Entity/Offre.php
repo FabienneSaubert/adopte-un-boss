@@ -20,7 +20,7 @@ class Offre
     private ?int $id = null;
 
    #[ORM\Column(enumType: DomaineActivite::class)]
-private ?DomaineActivite $categorie_offre = null;
+    private ?DomaineActivite $categorie_offre = null;
 
     #[ORM\Column(length: 150)]
     private ?string $intitule = null;

@@ -1,8 +1,7 @@
 <?php
 
 namespace App\Entity;
-// ajout App\Entity\Domaine
-use App\Entity\Competence;
+
 use App\Repository\SelectionCompetenceRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
@@ -24,7 +23,7 @@ class SelectionCompetence
 
     #[ORM\ManyToOne(inversedBy: 'selectionCompetences')]
     #[ORM\JoinColumn(nullable: false)]
-    private ?Competence $domaine = null;
+    private ?Competence $competence = null;
 
     public function getId(): ?int
     {
@@ -55,14 +54,14 @@ class SelectionCompetence
         return $this;
     }
 
-    public function getDomaine(): ?Competence
+    public function getCompetence(): ?Competence
     {
-        return $this->domaine;
+        return $this->competence;
     }
 
-    public function setDomaine(?Competence $domaine): static
+    public function setCompetence(?Competence $competence): static
     {
-        $this->domaine = $domaine;
+        $this->competence = $competence;
 
         return $this;
     }
