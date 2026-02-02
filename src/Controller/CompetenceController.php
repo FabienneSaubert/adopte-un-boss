@@ -3,7 +3,8 @@
 namespace App\Controller;
 
 use App\Entity\Competence;
-use App\Enum\CategorieCompetence;
+use App\Enum\TypeCompetence;
+use App\Enum\DomaineActivite;
 use App\Repository\CompetenceRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -50,18 +51,24 @@ final class CompetenceController extends AbstractController
             // Le nom ne peut pas être vide
         }
 
-        $categorie = CategorieCompetence::tryFrom($data['categorie'] ?? null);
-        // Conversion de la valeur reçue en ENUM CategorieCompetence
-        // tryFrom retourne null si la valeur ne correspond à aucun cas de l’ENUM
-        if (!$categorie) {
-            return $this->errorResponse('Categorie de competence invalide.',Response::HTTP_BAD_REQUEST);
-             // La catégorie envoyée ne correspond pas à l’ENUM
+        $type = TypeCompetence::tryFrom($data['type'] ?? null);
+        if (!$type) {
+            return $this->errorResponse('Type de compétence invalide.', Response::HTTP_BAD_REQUEST);
+        }
+
+        // Le domaine est optionnel (nullable)
+        $domaineActivite = null;
+        if (isset($data['domaine'])) {
+            $domaineActivite = DomaineActivite::tryFrom($data['domaine']);
+            if (!$domaineActivite) {
+                return $this->errorResponse('Domaine d\'activité invalide.', Response::HTTP_BAD_REQUEST);
+            }
         }
 
         $competence = (new Competence())
         ->setNom($nom)
-        ->setCategorie($categorie); 
-        // Création de l’entité Competence avec un ENUM valide
+            ->setType($type)
+            ->setDomaine($domaineActivite);
     
 
         $entityManager->persist($competence);
@@ -124,20 +131,25 @@ final class CompetenceController extends AbstractController
             // Mise à jour du nom
         }
 
-        //?? ====================================== CATEGORIE =====================================================
-          if (array_key_exists('categorie', $data) || $isPut) {
-
-            $categorie = CategorieCompetence::tryFrom(
-                $data['categorie'] ?? null
-            );
-
-            if (!$categorie) {
-                return $this->errorResponse('Catégorie de compétence invalide.',Response::HTTP_BAD_REQUEST);
-                // La valeur ne correspond à aucun cas de l’ENUM
+        //? ====================================== TYPE =====================================================
+        if (array_key_exists('type', $data) || $isPut) {
+            $type = TypeCompetence::tryFrom($data['type'] ?? null);
+            if (!$type) {
+                return $this->errorResponse('Type de compétence invalide.', Response::HTTP_BAD_REQUEST);
             }
+            $competence->setType($type);
+        }
 
-            $competence->setCategorie($categorie);
-            // Mise à jour de la catégorie avec un ENUM valide
+        //? ====================================== DOMAINE =====================================================
+        if (array_key_exists('domaine', $data)) {
+            $domaineActivite = null;
+            if ($data['domaine'] !== null) {
+                $domaineActivite = DomaineActivite::tryFrom($data['domaine']);
+                if (!$domaineActivite) {
+                    return $this->errorResponse('Domaine d\'activité invalide.', Response::HTTP_BAD_REQUEST);
+                }
+            }
+            $competence->setDomaine($domaineActivite);
         }
 
         $entityManager->flush();
@@ -183,7 +195,10 @@ final class CompetenceController extends AbstractController
             "nom"=>$competence->getNom(),
             // Nom de la compétence
 
-            "categorie"=>$competence->getCategorie()->value
+            "type" => $competence->getType()?->value,
+            // Valeur string de l’ENUM
+
+            "domaine"=>$competence->getDomaine()->value
             // Valeur string de l’ENUM
 
         ];

@@ -3,7 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\Offre;
-use App\Enum\CategorieOffre;
+use App\Enum\DomaineActivite;
 use App\Enum\NiveauEtude;
 use App\Enum\StatutOffre;
 use App\Repository\DepartementRepository;
@@ -45,9 +45,9 @@ final class OffreController extends AbstractController
         }
 
         $categorieOffreError = null;
-        $categorieOffre = $this->parseCategorieOffre((string) ($data["categorie_offre"] ?? null), true, $categorieOffreError);
+        $categorieOffre = $this->parseDomaineActivite((string) ($data["categorie_offre"] ?? null), true, $categorieOffreError);
         if ($categorieOffre === null) {
-            return $this->errorResponse($categorieOffreError ?? "La catégorie de l'offre n'est pas valide.", Response::HTTP_BAD_REQUEST);
+            return $this->errorResponse($categorieOffreError ?? "Le domaine d'activité de l'offre n'est pas valide.", Response::HTTP_BAD_REQUEST);
         }
 
         $intituleError = null;
@@ -193,12 +193,12 @@ final class OffreController extends AbstractController
         $categorieOffre = (string) ($data["categorie_offre"] ?? null);
         if ($categorieOffre !== null && $categorieOffre !== '') {
             $categorieOffreError = null;
-            $categorieOffre = $this->parseCategorieOffre($categorieOffre, false, $categorieOffreError);
+            $categorieOffre = $this->parseDomaineActivite($categorieOffre, false, $categorieOffreError);
             if ($categorieOffre !== null) {
                 $offre->setCategorieOffre($categorieOffre);
             }
             else {
-                return $this->errorResponse($categorieOffreError ?? "La catégorie de l'offre n'est pas valide.", Response::HTTP_BAD_REQUEST);
+                return $this->errorResponse($categorieOffreError ?? "Le domaine d'activité de l'offre n'est pas valide.", Response::HTTP_BAD_REQUEST);
             }
         }
 
@@ -375,21 +375,21 @@ final class OffreController extends AbstractController
         return $payload;
     }
 
-    private function parseCategorieOffre(mixed $value, bool $required, ?string &$error)
+    private function parseDomaineActivite(mixed $value, bool $required, ?string &$error)
     {
         $value = trim($value);
 
         if ($value === null || $value === '') {
             if ($required) {
-                $error = "La catégorie de l'offre est requise.";
+                $error = "Le domaine d'activité de l'offre est requis.";
             }
             return null;
         }
 
         // Pour la validation de l'enum, on utilise la méthode statique tryFrom()
         // qui va vérifier la présence du string dans l'enum
-        $value = CategorieOffre::tryFrom($value);
-        // S'il n'y a aucun résultat, c'est que la catégorie est invalide
+        $value = DomaineActivite::tryFrom($value);
+        // S'il n'y a aucun résultat, c'est que le domaine d'activité est invalide
         if (!$value) return null;
 
         return $value;

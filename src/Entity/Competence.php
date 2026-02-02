@@ -2,7 +2,8 @@
 
 namespace App\Entity;
 
-use App\Enum\CategorieCompetence;
+use App\Enum\TypeCompetence;
+use App\Enum\DomaineActivite;
 use App\Repository\CompetenceRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -16,10 +17,13 @@ class Competence
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\Column(enumType: CategorieCompetence::class)]
-    private ?CategorieCompetence $categorie = null;
+    #[ORM\Column(enumType: TypeCompetence::class)]
+    private ?TypeCompetence $type = null;
 
-    #[ORM\Column(length: 45)]
+    #[ORM\Column(enumType: DomaineActivite::class, nullable: true)]
+    private ?DomaineActivite $domaine = null;
+
+    #[ORM\Column(length: 255)]
     private ?string $nom = null;
 
     /**
@@ -45,15 +49,25 @@ class Competence
         return $this->id;
     }
 
-    public function getCategorie(): ?CategorieCompetence
+    public function getType(): ?TypeCompetence
     {
-        return $this->categorie;
+        return $this->type;
     }
 
-    public function setCategorie(CategorieCompetence $categorie): static
+    public function setType(?TypeCompetence $type): static
     {
-        $this->categorie = $categorie;
+        $this->type = $type;
+        return $this;
+    }
 
+    public function getDomaine(): ?DomaineActivite
+    {
+        return $this->domaine;
+    }
+ 
+    public function setDomaine(?DomaineActivite $domaine): static
+    {
+        $this->domaine = $domaine;
         return $this;
     }
 
@@ -65,7 +79,6 @@ class Competence
     public function setNom(string $nom): static
     {
         $this->nom = $nom;
-
         return $this;
     }
 
@@ -117,7 +130,6 @@ class Competence
     public function removeSelectionCompetence(SelectionCompetence $selectionCompetence): static
     {
         if ($this->selectionCompetences->removeElement($selectionCompetence)) {
-            // set the owning side to null (unless already changed)
             if ($selectionCompetence->getCompetence() === $this) {
                 $selectionCompetence->setCompetence(null);
             }

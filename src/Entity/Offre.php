@@ -1,8 +1,8 @@
 <?php
 
 namespace App\Entity;
-
-use App\Enum\CategorieOffre;
+//modification en domaineactivite
+use App\Enum\DomaineActivite;
 use App\Enum\NiveauEtude;
 use App\Enum\StatutOffre;
 use App\Repository\OffreRepository;
@@ -19,8 +19,8 @@ class Offre
     #[ORM\Column]
     private ?int $id = null;
 
-    #[ORM\Column(enumType: CategorieOffre::class)]
-    private ?CategorieOffre $categorie_offre = null;
+   #[ORM\Column(enumType: DomaineActivite::class)]
+    private ?DomaineActivite $categorie_offre = null;
 
     #[ORM\Column(length: 150)]
     private ?string $intitule = null;
@@ -83,12 +83,12 @@ class Offre
         return $this->id;
     }
 
-    public function getCategorieOffre(): ?CategorieOffre
+    public function getCategorieOffre(): ?DomaineActivite
     {
         return $this->categorie_offre;
     }
 
-    public function setCategorieOffre(CategorieOffre $categorie_offre): static
+    public function setCategorieOffre(DomaineActivite $categorie_offre): static
     {
         $this->categorie_offre = $categorie_offre;
 
