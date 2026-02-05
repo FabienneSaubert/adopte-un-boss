@@ -3,10 +3,10 @@
 namespace App\Controller;
 
 use App\Entity\Candidat;
-use App\Entity\Utilisateur;
 use App\Entity\Competence;
 use App\Entity\Departement;
 use App\Enum\NiveauEtude;
+use App\Factory\UtilisateurFactory;
 use App\Repository\CandidatRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -35,9 +35,9 @@ final class CandidatController extends AbstractController
     public function new(
         Request $request,
         EntityManagerInterface $entityManager,
-        CandidatRepository $candidatRepository
+        UtilisateurFactory $utilisateurFactory
     ): JsonResponse {
-        
+
         $data = $this->decodeJson($request);
 
         if (!$data) { // $data === null plus sécurisé que !$data ?
@@ -75,34 +75,11 @@ final class CandidatController extends AbstractController
             );
         }
 
-        // Récupération de l'utilisateur car un candidat doit être obligatoirement un utilisateur
-        // Id utilisateur sera associé au candidat lors du setter setUtilisateur() lors de l'instanciation Candidat
-        $utilisateur = $entityManager
-            ->getRepository(Utilisateur::class)
-            ->find($data['utilisateur_id']);
-
-        if (!$utilisateur) {
-            return $this->errorResponse('Utilisateur non trouvé', Response::HTTP_NOT_FOUND);
-        }
-
-        // Vérifier si l'utilisateur n'est pas déjà associé à un candidat
-        $candidatExistant = $candidatRepository->findOneBy(['utilisateur' => $utilisateur]);
-
-        if ($candidatExistant) {
-            return $this->errorResponse("Cet utilisateur est déjà associé à un candidat", Response::HTTP_CONFLICT);
-        }
-
         // Génération de l'UUID
-        $uuid = Uuid::v4()->toRfc4122();
+        $data['uuid'] = Uuid::v4()->toRfc4122();
 
-        // Création du candidat
-        $candidat = (new Candidat())
-            ->setUuid($uuid)
-            ->setProfilVisible($data['profil_visible'])
-            ->setInfosVisibles($data['infos_visibles'])
-            ->setCv($data['cv'] ?? null)
-            ->setNiveauEtude($niveauEtude)
-            ->setUtilisateur($utilisateur);
+        // Récupération du candidat créé par factory
+        $candidat = $utilisateurFactory->create('Candidat', $data);
 
         // Gestion des compétences
         if (isset($data['competence_ids']) && is_array($data['competence_ids'])) {
