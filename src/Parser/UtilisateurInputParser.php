@@ -15,7 +15,7 @@ class UtilisateurInputParser
     public function validate(array &$data): ?string
     {
         if (!array_key_exists('role', $data)) {
-            return "Le champ role est obligatoire.";
+            return "Le champ rôle est obligatoire.";
         }
 
         $data['role'] = RoleUtilisateur::tryFrom($data['role']);
