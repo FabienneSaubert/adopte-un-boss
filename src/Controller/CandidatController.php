@@ -52,17 +52,20 @@ final class CandidatController extends AbstractController
         }
 
         // Validation des champs requis
-        $requis = ['profil_visible', 'infos_visibles', 'niveau_etude', 'utilisateur_id'];
-        foreach ($requis as $champs) {
-            if (!isset($data[$champs])) {
-                return $this->errorResponse("Le champs '$champs' est requis", Response::HTTP_BAD_REQUEST);
-            }
+        $requis = ['niveau_etude'];
+        if (!isset($data['niveau_etude'])) {
+            return $this->errorResponse("Le champs 'niveau_etude' est requis", Response::HTTP_BAD_REQUEST);
         }
+
+        // Valeurs par défaut
+        $data['profil_visible'] = $data['profil_visible'] ?? true;
+        $data['infos_visibles'] = $data['infos_visibles'] ?? true;
 
         // Validation des booléens
         if (!is_bool($data['profil_visible'])) {
             return $this->errorResponse('profil_visible doit être un booléen', Response::HTTP_BAD_REQUEST);
         }
+
         if (!is_bool($data['infos_visibles'])) {
             return $this->errorResponse('infos_visibles doit être un booléen', Response::HTTP_BAD_REQUEST);
         }
@@ -175,10 +178,11 @@ final class CandidatController extends AbstractController
         } elseif ($isPut) {
             return $this->errorResponse('infos_visibles est requis', Response::HTTP_BAD_REQUEST);
         }
-
-        // Mise à jour du CV
-        if (array_key_exists('cv', $data)) {
-            $candidat->setCv($data['cv']);
+        // CV nullable
+        if (!array_key_exists('cv', $data)) {
+            $data['cv'] = null;
+        } elseif (!is_null($data['cv']) && !is_string($data['cv'])) {
+            return $this->errorResponse('cv doit être une chaîne', Response::HTTP_BAD_REQUEST);
         }
 
         // Mise à jour du niveau d'études
