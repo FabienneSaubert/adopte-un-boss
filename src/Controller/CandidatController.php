@@ -1,5 +1,5 @@
 <?php
-// composer require symfony/uid
+// composer require symfony/uid = package pour générer UUID
 namespace App\Controller;
 
 use App\Entity\Candidat;
@@ -7,6 +7,7 @@ use App\Entity\Competence;
 use App\Entity\Departement;
 use App\Enum\NiveauEtude;
 use App\Factory\UtilisateurFactory;
+use App\Parser\UtilisateurInputParser;
 use App\Repository\CandidatRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -34,6 +35,7 @@ final class CandidatController extends AbstractController
     #[Route('', name: 'api_candidat_post_collection', methods: ['POST'])]
     public function new(
         Request $request,
+        UtilisateurInputParser $utilisateurInputParser,
         EntityManagerInterface $entityManager,
         UtilisateurFactory $utilisateurFactory
     ): JsonResponse {
@@ -42,6 +44,11 @@ final class CandidatController extends AbstractController
 
         if (!$data) { // $data === null plus sécurisé que !$data ?
             return $this->errorResponse('JSON invalide', Response::HTTP_BAD_REQUEST);
+        }
+
+        $errorMessage = $utilisateurInputParser->validate($data);
+        if ($errorMessage !== null) {
+            return $this->errorResponse($errorMessage, Response::HTTP_BAD_REQUEST);
         }
 
         // Validation des champs requis
