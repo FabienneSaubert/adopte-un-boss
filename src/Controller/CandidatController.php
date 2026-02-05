@@ -70,6 +70,14 @@ final class CandidatController extends AbstractController
             return $this->errorResponse('infos_visibles doit être un booléen', Response::HTTP_BAD_REQUEST);
         }
 
+        // CV optionnel
+        if (!array_key_exists('cv', $data)) {
+            $data['cv'] = null;
+        } elseif (!is_null($data['cv']) && !is_string($data['cv'])) {
+            return $this->errorResponse('cv doit être une chaîne ou null', Response::HTTP_BAD_REQUEST);
+        }
+
+
         // Validation de l'enum NiveauEtude
         // TryFrom = méthode pour énum, permet de comparerl'entrée avec les valaeurs présentes dans 
         // l'enum niveau_etude. Si match -> retourne une instance, sinon retourne null;
@@ -169,22 +177,6 @@ final class CandidatController extends AbstractController
             return $this->errorResponse('profil_visible doit être un booléen', Response::HTTP_BAD_REQUEST);
         }
 
-        // Mise à jour de infos_visibles
-        if (array_key_exists('infos_visibles', $data)) {
-            if (!is_bool($data['infos_visibles'])) {
-                return $this->errorResponse('infos_visibles doit être un booléen', Response::HTTP_BAD_REQUEST);
-            }
-            $candidat->setInfosVisibles($data['infos_visibles']);
-        } elseif ($isPut) {
-            return $this->errorResponse('infos_visibles est requis', Response::HTTP_BAD_REQUEST);
-        }
-        // CV nullable
-        if (!array_key_exists('cv', $data)) {
-            $data['cv'] = null;
-        } elseif (!is_null($data['cv']) && !is_string($data['cv'])) {
-            return $this->errorResponse('cv doit être une chaîne', Response::HTTP_BAD_REQUEST);
-        }
-
         // Mise à jour du niveau d'études
         if (array_key_exists('niveau_etude', $data)) {
 
@@ -196,6 +188,11 @@ final class CandidatController extends AbstractController
             }
         } elseif ($isPut) {
             return $this->errorResponse('Le niveau d\'études est requis', Response::HTTP_BAD_REQUEST);
+        }
+
+        // Mise à jour du CV
+        if (array_key_exists('cv', $data)) {
+            $candidat->setCv($data['cv']);
         }
 
         // Mise à jour des compétences
