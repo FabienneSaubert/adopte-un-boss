@@ -75,6 +75,8 @@ final class CandidatController extends AbstractController
         // On s'assure que l'entrée utilisateur soit bonne et non null. 
         $niveauEtude = NiveauEtude::tryFrom($data['niveau_etude']);
 
+        $data['niveau_etude'] = $niveauEtude;
+
         if (!$niveauEtude) {
             return $this->json(
                 ['error' => 'niveau_etude invalide'],
@@ -261,9 +263,13 @@ final class CandidatController extends AbstractController
             'uuid' => $candidat->getUuid(),
             'cv' => $candidat->getCv(),
             'niveau_etude' => $candidat->getNiveauEtude()?->value,
-            'utilisateur' => $candidat->getUtilisateur() ? [
-                'id' => $candidat->getUtilisateur()->getId(),
-            ] : null,
+            "utilisateur" => [
+                "nom" => $candidat->getUtilisateur()->getNom(),
+                "prenom" => $candidat->getUtilisateur()->getPrenom(),
+                "date_de_naissance" => $candidat->getUtilisateur()->getDateDeNaissance(),
+                "email" => $candidat->getUtilisateur()->getEmail(),
+                "telephone" => $candidat->getUtilisateur()->getTelephone(),
+            ],
             'competences' => array_map(
                 fn(Competence $c) => [
                     'id' => $c->getId(),
