@@ -9,5 +9,5 @@ enum NiveauEtude: string
     case BAC = 'BAC';
     case BAC_2 = 'BAC +2 - BTS/DUT';
     case BAC_3 = 'BAC +3 - Licence';
-    case BAC_5 = 'BAC+5 - Master';
+    case BAC_5 = 'BAC +5 - Master';
 }

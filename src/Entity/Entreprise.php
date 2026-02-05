@@ -18,7 +18,7 @@ class Entreprise
     #[ORM\Column(length: 60)]
     private ?string $nom = null;
 
-    #[ORM\Column(length: 14)]
+    #[ORM\Column(length: 14, unique: true)]
     private ?string $siret = null;
 
     #[ORM\Column(length: 100)]
