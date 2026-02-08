@@ -1,5 +1,5 @@
 <?php
-// composer require symfony/uid = package pour générer UUID
+
 namespace App\Controller;
 
 use App\Entity\Candidat;
@@ -42,7 +42,7 @@ final class CandidatController extends AbstractController
 
         $data = $this->decodeJson($request);
 
-        if (!$data) { // $data === null plus sécurisé que !$data ?
+        if (!$data) {
             return $this->errorResponse('JSON invalide', Response::HTTP_BAD_REQUEST);
         }
 
@@ -64,13 +64,7 @@ final class CandidatController extends AbstractController
         $data['infos_visibles'] = true;
 
         // CV optionnel
-        // Verification : Si l'index cv n'est pas présent dans $data alors cv = null
-        if (!array_key_exists('cv', $data)) {
-            $data['cv'] = null;
-            // Si cv n'est pas null mais qu'il n'est pas un string alors erreur
-        } elseif (!is_null($data['cv']) && !is_string($data['cv'])) {
-            return $this->errorResponse('cv doit être une chaîne ou null', Response::HTTP_BAD_REQUEST);
-        }
+        $data['cv'] = null;
 
         // Validation de l'enum NiveauEtude
         // TryFrom = méthode pour énum, permet de comparerl'entrée avec les valaeurs présentes dans 
@@ -226,6 +220,8 @@ final class CandidatController extends AbstractController
         // Mise à jour du CV
         if (array_key_exists('cv', $data)) {
             $candidat->setCv($data['cv']);
+        } elseif (!is_null($data['cv']) && !is_string($data['cv'])) {
+            return $this->errorResponse('cv doit être une chaîne de caractères', Response::HTTP_BAD_REQUEST);
         }
 
         // Mise à jour des compétences
