@@ -4,22 +4,31 @@ namespace App\Parser;
 
 use App\Enum\RoleUtilisateur;
 
-class UtilisateurInputParser {
+class UtilisateurInputParser
+{
     /**
      * Permet de valider les champs envoyés par le client concernant l'entité Utilisateur
      * 
      * @param array $data adresse mémoire du tableau associatif contenant tous les champs du JSON body d'une requête client
      * @return string|null message d'erreur lors de la validation si non null
      */
-    public function validate(array &$data): ?string {
+    public function validate(array &$data): ?string
+    {
+        if (!array_key_exists('role', $data)) {
+            return "Le champ rôle est obligatoire.";
+        }
+
         $data['role'] = RoleUtilisateur::tryFrom($data['role']);
+
+        if (!$data['role']) {
+            return 'Rôle utilisateur invalide.';
+        }
+
         // TryFrom = méthode pour énum, permet de comparer l'entrée avec les valeurs présentes dans
         // l'enum niveau_etude. Si match -> retourne une instance, sinon retourne null;
         // Ici, je compare la valeur de la requête à la valeur "niveau_etude" avec les enum possible
         // On s'assure que l'entrée utilisateur soit bonne et non null.
-        if (!$data['role']) {
-            return 'Rôle utilisateur invalide.';
-        }
+
 
         $data["nom"] = trim((string) ($data["nom"] ?? ""));
         // récupère le nom et supprime les espaces inutiles
@@ -29,13 +38,13 @@ class UtilisateurInputParser {
 
         $emailErreur = null;
         $data['email'] = $this->verifEmail($data['email'] ?? null, true, $emailErreur);
-        if($data['email'] === null){
+        if ($data['email'] === null) {
             return $emailErreur ?? "Email est obligatoire";
         }
-      
+
         $naissanceErreur = null;
         $data['date_de_naissance'] = $this->verifDateNaissance($data['date_de_naissance'] ?? null, true, $naissanceErreur);
-        if($data['date_de_naissance'] === null){
+        if ($data['date_de_naissance'] === null) {
             return $naissanceErreur ?? "Date de naissance est obligatoire";
         }
 
@@ -44,7 +53,7 @@ class UtilisateurInputParser {
         // Vérifie que le téléphone : existe
         //                           est un string
         //                           respecte le format attendu → le regex
-        if($data['telephone'] === null){
+        if ($data['telephone'] === null) {
             return $telephoneErreur ?? "Telephone est obligatoire";
         }
 
@@ -53,7 +62,7 @@ class UtilisateurInputParser {
         // Vérifie que le mot de passe : existe
         //                              est un string
         //                              respecte le format attendu → le regex
-        if($mdp_hash === null){
+        if ($mdp_hash === null) {
             return $mdpErreur ?? "Mot de passe est obligatoire";
         }
         $data["mdp_hash"] = password_hash($mdp_hash, PASSWORD_BCRYPT);
@@ -62,7 +71,7 @@ class UtilisateurInputParser {
         return null;
     }
 
-//! ================================================= LES FONCTIONS UTILITAIRES ==================================================================================================================================
+    //! ================================================= LES FONCTIONS UTILITAIRES ==================================================================================================================================
 
     //? ================================================ VERIFICATION DE EMAIL ===================================================================================================================================
     public function verifEmail(mixed $value, bool $required, ?string &$erreur): ?string
@@ -73,10 +82,10 @@ class UtilisateurInputParser {
     // &$erreur → variable pour stocker un message d’erreur
     // : ?string → retourne un texte ou null
     {
-        if ($value === null || $value === ''){
-        // Vérifie si l'email est absent ou vide
+        if ($value === null || $value === '') {
+            // Vérifie si l'email est absent ou vide
 
-            if ($required){
+            if ($required) {
                 $erreur = 'Email est obligatoire.';
                 // Si l'email' est obligatoire → message d’erreur
             }
@@ -84,7 +93,7 @@ class UtilisateurInputParser {
             // Arrête la fonction → email invalide
         }
 
-        if (!is_string($value)){
+        if (!is_string($value)) {
             // Si l'email n'est pas un string
 
             $erreur = "Email n'est pas valide.";
@@ -102,7 +111,7 @@ class UtilisateurInputParser {
         //                              - d'un point et d'une extension
 
         if (!preg_match($emailRegex, $value)) {
-        // Vérifie si l'email respecte le format attendu
+            // Vérifie si l'email respecte le format attendu
 
             $erreur = "Format d'email non valide.";
             //Message d’erreur
@@ -110,7 +119,7 @@ class UtilisateurInputParser {
             return null;
             // Arrête la fonction → email invalide
         }
-        return $value; 
+        return $value;
     }
 
     //? ================================================ VERIFICATION DE TELEPHONE ===================================================================================================================================
@@ -124,24 +133,24 @@ class UtilisateurInputParser {
     // : ?string → retourne un texte ou null
 
     {
-        if($value === null || $value === ''){
-        // Vérifie si le téléphone est absent ou vide
-            
-            if ($required){
+        if ($value === null || $value === '') {
+            // Vérifie si le téléphone est absent ou vide
+
+            if ($required) {
                 $erreur = "Téléphone est obligatoire.";
-            // Si le téléphone est obligatoire → message d'erreur
+                // Si le téléphone est obligatoire → message d'erreur
             }
 
             return null;
             // Arrête la fonction → téléphone invalide
         }
 
-        if (!is_string($value)){
-        // Si le téléphone n'est pas un string
+        if (!is_string($value)) {
+            // Si le téléphone n'est pas un string
 
             $erreur = 'Téléphone doit contenir des chiffres.';
             //Message d’erreur
- 
+
             return null;
             // Arrête la fonction → téléphone invalide
         }
@@ -151,11 +160,11 @@ class UtilisateurInputParser {
         // Accepte les numéros : 06XXXXXXXX, 07XXXXXXXX, +336XXXXXXXX, +337XXXXXXXX
 
         if (!preg_match($telephoneRegex, $value)) {
-        // Vérifie si le numéro correspond au format attendu
+            // Vérifie si le numéro correspond au format attendu
 
             $erreur = 'Le format non valide.';
             //Message d’erreur
- 
+
             return null;
             // Arrête la fonction → téléphone invalide
         }
@@ -208,20 +217,20 @@ class UtilisateurInputParser {
     // &$erreur → variable pour stocker un message d’erreur
     // : ?string → retourne un texte ou null
     {
-        if($value === null || $value === ''){
-        // Vérifie si le mot de passe est absent ou vide
+        if ($value === null || $value === '') {
+            // Vérifie si le mot de passe est absent ou vide
 
             if ($required) {
                 $erreur = 'Mot de passe est obligatoire.';
-            // Si le mot de passe est obligatoire → message d’erreur
+                // Si le mot de passe est obligatoire → message d’erreur
             }
- 
+
             return null;
             // Arrête la fonction → mot de passe invalide
         }
 
-        if (!is_string($value)){
-        // Si l'email n'est pas un string
+        if (!is_string($value)) {
+            // Si l'email n'est pas un string
 
             $erreur = "Mot de passe n'est pas valide.";
             //Message d’erreur
@@ -234,11 +243,11 @@ class UtilisateurInputParser {
         // Définit la longueur minimale requise
 
         if (strlen($value) < $minLength) {
-        // Vérifie si le mot de passe est trop court
+            // Vérifie si le mot de passe est trop court
 
             $erreur = 'Le mot de passe doit contenir au moins 8 caractères.';
             //Message d’erreur
- 
+
             return null;
             // Arrête la fonction → téléphone invalide
         }
@@ -251,14 +260,14 @@ class UtilisateurInputParser {
         //                                                      - au moins un caractère spécial
 
         if (!preg_match($mdpRegex, $value)) {
-        // Vérifie si le mot de passe respecte le format 
+            // Vérifie si le mot de passe respecte le format 
 
             $erreur = 'Le mot de passe doit contenir une minuscule, une majuscule, une chiffre et un caractère spécial.';
             //Message d’erreur
- 
+
             return null;
             // Arrête la fonction → téléphone invalide
         }
-        return $value; 
+        return $value;
     }
 }

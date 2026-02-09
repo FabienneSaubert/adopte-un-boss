@@ -6,7 +6,8 @@ use App\Entity\Candidat;
 use App\Entity\Recruteur;
 use App\Entity\Utilisateur;
 
-class UtilisateurFactory {
+class UtilisateurFactory
+{
     /**
      * Renvoi un objet contenant l'instance de la classe entité Entreprise, rempli avec les
      * données contenues dans `$data`. A utiliser uniquement depuis les contrôleurs Candidat ou Recruteur.
@@ -32,19 +33,17 @@ class UtilisateurFactory {
         return match ($role) {
             'Candidat' => (new Candidat())
                 ->setProfilVisible($data["profil_visible"])
-                ->setInfosVisibles($data["infos_visible"])
+                ->setInfosVisibles($data["infos_visibles"])
                 ->setUuid($data["uuid"])
                 ->setCv($data["cv"])
                 ->setNiveauEtude($data["niveau_etude"])
-                ->setUtilisateur($utilisateur)
-                ,
+                ->setUtilisateur($utilisateur),
             'Recruteur' => (new Recruteur())
                 ->setPoste($data["poste"])
                 ->setEmailPro($data["email_pro"])
                 ->setTelephonePro($data["telephone_pro"])
                 ->setEntreprise($data["entreprise"])
-                ->setUtilisateur($utilisateur)
-                ,
+                ->setUtilisateur($utilisateur),
             default => throw new \Exception("Rôle utilisateur non supporté.")
         };
     }

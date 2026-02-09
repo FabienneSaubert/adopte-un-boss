@@ -22,7 +22,7 @@ class Candidat
     #[ORM\Column]
     private ?bool $infos_visibles = null;
 
-    #[ORM\Column(length: 30)]
+    #[ORM\Column(length: 36)]
     private ?string $uuid = null;
 
     #[ORM\Column(length: 150, nullable: true)]
