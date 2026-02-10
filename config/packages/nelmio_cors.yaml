@@ -1,0 +1,42 @@
+nelmio_cors:
+    # Paramètres par défaut appliqués à toutes les routes concernées
+    defaults:
+        # Autorise l'utilisation d'une expression régulière dans allow_origin
+        # (très pratique pour autoriser localhost avec n'importe quel port en dev)
+        origin_regex: true
+
+        # Liste des origines autorisées (ici via une variable d'environnement)
+        # Exemples :
+        # - DEV : ^http://localhost(:[0-9]+)?$
+        # - PROD : ^https://(www\.)?adopte-un-boss\.fr$
+        allow_origin: ['%env(CORS_ALLOW_ORIGIN)%']
+
+        # Méthodes HTTP autorisées pour les requêtes cross-origin
+        # OPTIONS est indispensable pour les "preflight requests" du navigateur
+        allow_methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
+
+        # Headers que le navigateur a le droit d'envoyer à l'API
+        # Content-Type : pour envoyer du JSON (application/json)
+        # Authorization : pour envoyer un token JWT (Bearer ...)
+        allow_headers: ['Content-Type', 'Authorization']
+
+        # Headers que le navigateur est autorisé à lire côté client
+        # Exemple classique : "Link" (utile pour pagination, API Platform, etc.)
+        expose_headers: ['Link']
+
+        # Indique si les cookies / auth basée sur cookies sont autorisés en cross-origin
+        # Pour une API REST stateless avec JWT, on laisse à false (recommandé)
+        allow_credentials: false
+
+        # Cache côté navigateur du résultat du preflight (OPTIONS), en secondes
+        # 3600 = 1 heure : évite de refaire des preflight trop souvent
+        max_age: 3600
+
+    # Règles appliquées par chemins (regex)
+    paths:
+        # On limite volontairement le CORS aux routes API
+        # (évite d'ouvrir le CORS sur toutes les routes Symfony)
+        '^/api/':
+            # Origines autorisées spécifiquement pour /api
+            # Ici on réutilise la même variable d'environnement
+            allow_origin: ['%env(CORS_ALLOW_ORIGIN)%']
