@@ -53,39 +53,13 @@ final class CandidatController extends AbstractController
             return $this->errorResponse($errorMessage, Response::HTTP_BAD_REQUEST);
         }
 
-        // Validation de niveau_etude
-        // Vérification : si $data ne contient pas niveau_etude alors erreur
-        if (!isset($data['niveau_etude'])) {
-            return $this->errorResponse("Le champs 'niveau_etude' est requis", Response::HTTP_BAD_REQUEST);
-        }
-
         // Valeurs par défaut
         $data['profil_visible'] = true;
         $data['infos_visibles'] = true;
+        $data['niveau_etude'] = NiveauEtude::SANS_DIPLOME;
 
         // CV optionnel
         $data['cv'] = null;
-
-        // Validation de l'enum NiveauEtude
-        // TryFrom = méthode pour énum, permet de comparerl'entrée avec les valaeurs présentes dans 
-        // l'enum niveau_etude. Si match -> retourne une instance, sinon retourne null;
-        //! TryFrom = renvoi null si la valeur n'est pas dans l'enum, le script continue, on gère le null 
-        //! en créant une réponse adaptée "si niveauEtude est null"... 
-        //! J'aurais pu utiliser from à la place mais ce n'est pas recommandé car en cas 
-        //! d'erreur, from stoppe le script (et donc l'application).
-        // Ici, je compare la valeur de la requête à la valeur "niveau_etude" avec les enum possible
-        // On s'assure que l'entrée utilisateur soit bonne et non null. 
-        $niveauEtude = NiveauEtude::tryFrom($data['niveau_etude']);
-
-        $data['niveau_etude'] = $niveauEtude;
-
-        // Vérification : Si pas de niveau_etude alors erreur 
-        if (!$niveauEtude) {
-            return $this->json(
-                ['error' => 'niveau_etude invalide'],
-                Response::HTTP_BAD_REQUEST
-            );
-        }
 
         // Génération de l'UUID (package Symfony)
         $data['uuid'] = Uuid::v4()->toRfc4122();
@@ -111,9 +85,9 @@ final class CandidatController extends AbstractController
 
         // Gestion du département
         // Vérifiacation : Si $data contient bien "departement_id"
-        if (isset($data['departement_id'])) {
+        if (isset($data['departement'])) {
             // On stocke le département récupéré par la requête du repo
-            $departement = $entityManager->getRepository(Departement::class)->find($data['departement_id']);
+            $departement = $entityManager->getRepository(Departement::class)->find($data['departement']);
 
             if ($departement) { // si département n'est pas null
                 $candidat->setDepartement($departement); // on set le département du candidat
@@ -205,6 +179,16 @@ final class CandidatController extends AbstractController
         if (array_key_exists('niveau_etude', $data)) {
             // Si oui, alors on vérifie si la valeur correspond bien au fichier ENUM 
             // et on la stocke dans $niveauEtude
+            
+            // Validation de l'enum NiveauEtude
+            // TryFrom = méthode pour énum, permet de comparerl'entrée avec les valaeurs présentes dans 
+            // l'enum niveau_etude. Si match -> retourne une instance, sinon retourne null;
+            //! TryFrom = renvoi null si la valeur n'est pas dans l'enum, le script continue, on gère le null 
+            //! en créant une réponse adaptée "si niveauEtude est null"... 
+            //! J'aurais pu utiliser from à la place mais ce n'est pas recommandé car en cas 
+            //! d'erreur, from stoppe le script (et donc l'application).
+            // Ici, je compare la valeur de la requête à la valeur "niveau_etude" avec les enum possible
+            // On s'assure que l'entrée utilisateur soit bonne et non null.
             $niveauEtude = NiveauEtude::tryFrom($data['niveau_etude']);
             // Puis le repo édite la nouvelle valeur de l'attribut niveau_etude en mémoire
             $candidat->setNiveauEtude($niveauEtude);
@@ -219,40 +203,39 @@ final class CandidatController extends AbstractController
 
         // Mise à jour du CV
         if (array_key_exists('cv', $data)) {
+            if (!is_null($data['cv']) && !is_string($data['cv'])) {
+                return $this->errorResponse('cv doit être une chaîne de caractères', Response::HTTP_BAD_REQUEST);
+            }
             $candidat->setCv($data['cv']);
-        } elseif (!is_null($data['cv']) && !is_string($data['cv'])) {
-            return $this->errorResponse('cv doit être une chaîne de caractères', Response::HTTP_BAD_REQUEST);
         }
 
         // Mise à jour des compétences
-        if (array_key_exists('competence_ids', $data)) {
-            if (!is_array($data['competence_ids'])) {
+        if (array_key_exists('competences', $data)) {
+            if (!is_array($data['competences'])) {
                 return $this->errorResponse('La liste des id compétence doit être un tableau', Response::HTTP_BAD_REQUEST);
             }
 
-            // Supprimer toutes les compétences existantes
-            foreach ($candidat->getCompetences() as $competence) {
-                $candidat->removeCompetence($competence);
-            }
+            // Vide la collection Competences
+            $candidat->getCompetences()->clear();
 
             // Ajouter les nouvelles compétences
-            foreach ($data['competence_ids'] as $competenceId) {
-                $competence = $entityManager->getRepository(Competence::class)->find($competenceId);
-                // Méthode plus concise :  $competence = $entityManager->find(Competence::class, $competenceId); 
+            foreach ($data['competences'] as $competenceId) {
+                $competence = $entityManager->find(Competence::class, $competenceId);
+
                 if ($competence) {
                     $candidat->addCompetence($competence);
                 } else {
-                    return $this->errorResponse("La compétence avec l'id $competenceId est introuvable", Response::HTTP_NOT_FOUND);
+                    return $this->errorResponse("La compétence id $competenceId est introuvable", Response::HTTP_NOT_FOUND);
                 }
             }
         }
 
         // Mise à jour du département 
-        if (array_key_exists('departement_id', $data)) {
-            if ($data['departement_id'] === null) {
+        if (array_key_exists('departement', $data)) {
+            if ($data['departement'] === null) {
                 $candidat->setDepartement(null);
             } else {
-                $departement = $entityManager->find(Departement::class, $data['departement_id']); // Méthode plus concise
+                $departement = $entityManager->find(Departement::class, $data['departement']); // Méthode plus concise
                 if ($departement) {
                     $candidat->setDepartement($departement);
                 } else {
@@ -305,11 +288,15 @@ final class CandidatController extends AbstractController
             'competences' => array_map(
                 fn(Competence $c) => [
                     'id' => $c->getId(),
+                    'type' => $c->getDomaine(),
+                    'nom' => $c->getNom(),
                 ],
                 $candidat->getCompetences()->toArray()
             ),
             'departement' => $candidat->getDepartement() ? [
                 'id' => $candidat->getDepartement()->getId(),
+                'nom' => $candidat->getDepartement()->getNom(),
+                'numero' => $candidat->getDepartement()->getNumero(),
             ] : null,
             'candidatures' => array_map(
                 fn($candidature) => [
