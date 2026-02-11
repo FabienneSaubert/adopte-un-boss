@@ -56,6 +56,7 @@ final class CandidatController extends AbstractController
         // Valeurs par défaut
         $data['profil_visible'] = true;
         $data['infos_visibles'] = true;
+        $data['niveau_etude'] = NiveauEtude::SANS_DIPLOME;
 
         // CV optionnel
         $data['cv'] = null;
