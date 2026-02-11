@@ -311,6 +311,8 @@ final class CandidatController extends AbstractController
             ),
             'departement' => $candidat->getDepartement() ? [
                 'id' => $candidat->getDepartement()->getId(),
+                'nom' => $candidat->getDepartement()->getNom(),
+                'numero' => $candidat->getDepartement()->getNumero(),
             ] : null,
             'candidatures' => array_map(
                 fn($candidature) => [
