@@ -304,6 +304,8 @@ final class CandidatController extends AbstractController
             'competences' => array_map(
                 fn(Competence $c) => [
                     'id' => $c->getId(),
+                    'type' => $c->getDomaine(),
+                    'nom' => $c->getNom(),
                 ],
                 $candidat->getCompetences()->toArray()
             ),
