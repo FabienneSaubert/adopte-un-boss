@@ -155,6 +155,9 @@ class UtilisateurInputParser
             // Arrête la fonction → téléphone invalide
         }
 
+        // Retrait des espaces
+        $value = str_replace(' ','',$value);
+
         $telephoneRegex = '/^(?:\+33|0)[67]\d{8}$/';
         // Regex numéro de téléphone français
         // Accepte les numéros : 06XXXXXXXX, 07XXXXXXXX, +336XXXXXXXX, +337XXXXXXXX
@@ -162,7 +165,7 @@ class UtilisateurInputParser
         if (!preg_match($telephoneRegex, $value)) {
             // Vérifie si le numéro correspond au format attendu
 
-            $erreur = 'Le format non valide.';
+            $erreur = 'Le format du téléphone est non valide.';
             //Message d’erreur
 
             return null;
