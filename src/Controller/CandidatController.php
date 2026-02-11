@@ -53,39 +53,12 @@ final class CandidatController extends AbstractController
             return $this->errorResponse($errorMessage, Response::HTTP_BAD_REQUEST);
         }
 
-        // Validation de niveau_etude
-        // Vérification : si $data ne contient pas niveau_etude alors erreur
-        if (!isset($data['niveau_etude'])) {
-            return $this->errorResponse("Le champs 'niveau_etude' est requis", Response::HTTP_BAD_REQUEST);
-        }
-
         // Valeurs par défaut
         $data['profil_visible'] = true;
         $data['infos_visibles'] = true;
 
         // CV optionnel
         $data['cv'] = null;
-
-        // Validation de l'enum NiveauEtude
-        // TryFrom = méthode pour énum, permet de comparerl'entrée avec les valaeurs présentes dans 
-        // l'enum niveau_etude. Si match -> retourne une instance, sinon retourne null;
-        //! TryFrom = renvoi null si la valeur n'est pas dans l'enum, le script continue, on gère le null 
-        //! en créant une réponse adaptée "si niveauEtude est null"... 
-        //! J'aurais pu utiliser from à la place mais ce n'est pas recommandé car en cas 
-        //! d'erreur, from stoppe le script (et donc l'application).
-        // Ici, je compare la valeur de la requête à la valeur "niveau_etude" avec les enum possible
-        // On s'assure que l'entrée utilisateur soit bonne et non null. 
-        $niveauEtude = NiveauEtude::tryFrom($data['niveau_etude']);
-
-        $data['niveau_etude'] = $niveauEtude;
-
-        // Vérification : Si pas de niveau_etude alors erreur 
-        if (!$niveauEtude) {
-            return $this->json(
-                ['error' => 'niveau_etude invalide'],
-                Response::HTTP_BAD_REQUEST
-            );
-        }
 
         // Génération de l'UUID (package Symfony)
         $data['uuid'] = Uuid::v4()->toRfc4122();
@@ -205,6 +178,16 @@ final class CandidatController extends AbstractController
         if (array_key_exists('niveau_etude', $data)) {
             // Si oui, alors on vérifie si la valeur correspond bien au fichier ENUM 
             // et on la stocke dans $niveauEtude
+            
+            // Validation de l'enum NiveauEtude
+            // TryFrom = méthode pour énum, permet de comparerl'entrée avec les valaeurs présentes dans 
+            // l'enum niveau_etude. Si match -> retourne une instance, sinon retourne null;
+            //! TryFrom = renvoi null si la valeur n'est pas dans l'enum, le script continue, on gère le null 
+            //! en créant une réponse adaptée "si niveauEtude est null"... 
+            //! J'aurais pu utiliser from à la place mais ce n'est pas recommandé car en cas 
+            //! d'erreur, from stoppe le script (et donc l'application).
+            // Ici, je compare la valeur de la requête à la valeur "niveau_etude" avec les enum possible
+            // On s'assure que l'entrée utilisateur soit bonne et non null.
             $niveauEtude = NiveauEtude::tryFrom($data['niveau_etude']);
             // Puis le repo édite la nouvelle valeur de l'attribut niveau_etude en mémoire
             $candidat->setNiveauEtude($niveauEtude);
