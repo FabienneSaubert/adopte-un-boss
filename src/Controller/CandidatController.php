@@ -111,9 +111,9 @@ final class CandidatController extends AbstractController
 
         // Gestion du département
         // Vérifiacation : Si $data contient bien "departement_id"
-        if (isset($data['departement_id'])) {
+        if (isset($data['departement'])) {
             // On stocke le département récupéré par la requête du repo
-            $departement = $entityManager->getRepository(Departement::class)->find($data['departement_id']);
+            $departement = $entityManager->getRepository(Departement::class)->find($data['departement']);
 
             if ($departement) { // si département n'est pas null
                 $candidat->setDepartement($departement); // on set le département du candidat
@@ -219,40 +219,39 @@ final class CandidatController extends AbstractController
 
         // Mise à jour du CV
         if (array_key_exists('cv', $data)) {
+            if (!is_null($data['cv']) && !is_string($data['cv'])) {
+                return $this->errorResponse('cv doit être une chaîne de caractères', Response::HTTP_BAD_REQUEST);
+            }
             $candidat->setCv($data['cv']);
-        } elseif (!is_null($data['cv']) && !is_string($data['cv'])) {
-            return $this->errorResponse('cv doit être une chaîne de caractères', Response::HTTP_BAD_REQUEST);
         }
 
         // Mise à jour des compétences
-        if (array_key_exists('competence_ids', $data)) {
-            if (!is_array($data['competence_ids'])) {
+        if (array_key_exists('competences', $data)) {
+            if (!is_array($data['competences'])) {
                 return $this->errorResponse('La liste des id compétence doit être un tableau', Response::HTTP_BAD_REQUEST);
             }
 
-            // Supprimer toutes les compétences existantes
-            foreach ($candidat->getCompetences() as $competence) {
-                $candidat->removeCompetence($competence);
-            }
+            // Vide la collection Competences
+            $candidat->getCompetences()->clear();
 
             // Ajouter les nouvelles compétences
-            foreach ($data['competence_ids'] as $competenceId) {
-                $competence = $entityManager->getRepository(Competence::class)->find($competenceId);
-                // Méthode plus concise :  $competence = $entityManager->find(Competence::class, $competenceId); 
+            foreach ($data['competences'] as $competenceId) {
+                $competence = $entityManager->find(Competence::class, $competenceId);
+
                 if ($competence) {
                     $candidat->addCompetence($competence);
                 } else {
-                    return $this->errorResponse("La compétence avec l'id $competenceId est introuvable", Response::HTTP_NOT_FOUND);
+                    return $this->errorResponse("La compétence id $competenceId est introuvable", Response::HTTP_NOT_FOUND);
                 }
             }
         }
 
         // Mise à jour du département 
-        if (array_key_exists('departement_id', $data)) {
-            if ($data['departement_id'] === null) {
+        if (array_key_exists('departement', $data)) {
+            if ($data['departement'] === null) {
                 $candidat->setDepartement(null);
             } else {
-                $departement = $entityManager->find(Departement::class, $data['departement_id']); // Méthode plus concise
+                $departement = $entityManager->find(Departement::class, $data['departement']); // Méthode plus concise
                 if ($departement) {
                     $candidat->setDepartement($departement);
                 } else {
