@@ -382,7 +382,7 @@ final class UtilisateurController extends AbstractController
             // "id" → clé du tableau
             // $user->getId() → récupère l’identifiant de l'utilisateur
 
-            "role"=>$utilisateur->getRole()?->value,
+            "role"=>$utilisateur->getRole(),
 
             "nom"=>$utilisateur->getNom(),
             // Récupère le nom de l'utilisateur
@@ -399,7 +399,7 @@ final class UtilisateurController extends AbstractController
             "telephone"=>$utilisateur->getTelephone(),
             // Récupère le télephone de l'utilisateur
 
-            "statut_inscription"=>$utilisateur->getStatutInscription()?->value,
+            "statut_inscription"=>$utilisateur->getStatutInscription(),
             // Récupère le statut de l'inscription
 
         ];

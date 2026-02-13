@@ -17,21 +17,21 @@ use Symfony\Component\Routing\Attribute\Route;
 final class CompetenceController extends AbstractController
 {
 
-//! ======================================== LISTE DES COMPETENCES ==============================================================================================
+    //! ======================================== LISTE DES COMPETENCES ==============================================================================================
     #[Route(name: 'api_competence_get_collection', methods: ['GET'])]
     public function index(CompetenceRepository $competenceRepository): JsonResponse
     {
         $competences = array_map(
-        fn(Competence $competence) => $this->serialiserCompetence($competence),
-        // transforme chaque competence en index de tableau grâce à la méthode serialiserCompetence()
+            fn(Competence $competence) => $this->serialiserCompetence($competence),
+            // transforme chaque competence en index de tableau grâce à la méthode serialiserCompetence()
 
-        $competenceRepository->findAll()
-        // récupère tous les compétences en base de données
+            $competenceRepository->findAll()
+            // récupère tous les compétences en base de données
         );
         return $this->json($competences);
         // Retourne la liste des compétences au format JSON
     }
-//! ============================== CREER UNE NOUVELLE COMPETENCE ==============================================================================================
+    //! ============================== CREER UNE NOUVELLE COMPETENCE ==============================================================================================
 
     #[Route('', name: 'api_competence_post_collection', methods: ['POST'])]
     public function create(Request $request, EntityManagerInterface $entityManager): JsonResponse
@@ -66,10 +66,10 @@ final class CompetenceController extends AbstractController
         }
 
         $competence = (new Competence())
-        ->setNom($nom)
+            ->setNom($nom)
             ->setType($type)
             ->setDomaine($domaineActivite);
-    
+
 
         $entityManager->persist($competence);
         // prépare l’insertion en base
@@ -81,23 +81,23 @@ final class CompetenceController extends AbstractController
         // Retourne la compétence créée avec le code HTTP 201
     }
 
-//! =========================================== AFFICHER UNE COMPETENCE ==============================================================================================
+    //! =========================================== AFFICHER UNE COMPETENCE ==============================================================================================
     #[Route('/{id}', name: 'api_competence_get_item', methods: ['GET'])]
     public function show(int $id, CompetenceRepository $competenceRepository): JsonResponse
     {
         $competence = $competenceRepository->find($id);
         // Recherche de la compétence par son identifiant
-        
+
         if (!$competence) {
             return $this->errorResponse('Compétence non trouvée.', Response::HTTP_NOT_FOUND);
             // Aucune compétence trouvée → erreur 404
         }
 
-       return $this->json($this->serialiserCompetence($competence));
-       // Retourne la compétence trouvée
+        return $this->json($this->serialiserCompetence($competence));
+        // Retourne la compétence trouvée
     }
 
-//! ========================================= MODIFIER UNE COMPETENCE ==============================================================================================
+    //! ========================================= MODIFIER UNE COMPETENCE ==============================================================================================
     #[Route('/{id}', name: 'api_competence_put_item', methods: ['PUT', 'PATCH'])]
     public function update(int $id, Request $request, CompetenceRepository $competenceRepository, EntityManagerInterface $entityManager): JsonResponse
     {
@@ -116,7 +116,7 @@ final class CompetenceController extends AbstractController
             // JSON invalide
         }
 
-        $isPut = $request ->getMethod() === "PUT";
+        $isPut = $request->getMethod() === "PUT";
         // PUT → tous les champs obligatoires
         // PATCH → seulement les champs fournis
 
@@ -159,13 +159,13 @@ final class CompetenceController extends AbstractController
         // Retourne la compétence mise à jour
     }
 
-//! ==================================== SUPPRIMER UNE COMPETENCE ==============================================================================================
+    //! ==================================== SUPPRIMER UNE COMPETENCE ==============================================================================================
     #[Route('/{id}', name: 'api_competence_delete_item', methods: ['DELETE'])]
-    
+
     public function delete(int $id, CompetenceRepository $competenceRepository, EntityManagerInterface $entityManager): JsonResponse
     {
-     $competence = $competenceRepository->find($id);
-     // Recherche de la compétence à supprimer
+        $competence = $competenceRepository->find($id);
+        // Recherche de la compétence à supprimer
 
         if (!$competence) {
             return $this->errorResponse('Compétence non trouvé.', Response::HTTP_NOT_FOUND);
@@ -182,23 +182,23 @@ final class CompetenceController extends AbstractController
         // Retourne un code 204 (suppression réussie)
     }
 
-//! ================================ TRANSFORMATION D'UN OBJET Competence EN TABLEAU SIMPLE POUR JSON ==============================================================================================
+    //! ================================ TRANSFORMATION D'UN OBJET Competence EN TABLEAU SIMPLE POUR JSON ==============================================================================================
 
     private function serialiserCompetence(Competence $competence): array
     {
         return [
-        // On renvoie un tableau PHP
+            // On renvoie un tableau PHP
 
-            "id"=>$competence->getId(),
+            "id" => $competence->getId(),
             // Identifiant de la compétence
 
-            "nom"=>$competence->getNom(),
+            "nom" => $competence->getNom(),
             // Nom de la compétence
 
-            "type" => $competence->getType()?->value,
+            "type" => $competence->getType(),
             // Valeur string de l’ENUM
 
-            "domaine"=>$competence->getDomaine()->value
+            "domaine" => $competence->getDomaine(),
             // Valeur string de l’ENUM
 
         ];
@@ -206,33 +206,33 @@ final class CompetenceController extends AbstractController
     }
 
 
-//! ============================= LECTURE DU CONTENU JSON ENVOYE PAR LE CLIENT ET TRANSFORMATION EN TABLEAU ==============================================================================================
+    //! ============================= LECTURE DU CONTENU JSON ENVOYE PAR LE CLIENT ET TRANSFORMATION EN TABLEAU ==============================================================================================
     private function decodeJson(Request $request): ?array
     // private → utilisable seulement dans ce contrôleur
     // decodeJson → lit du JSON
     // Request $request → la requête envoyée par le client
     // : ?array → retourne un tableau ou null
-    
+
     {
         $payload = json_decode($request->getContent(), true);
         // $request->getContent() → récupère le contenu brut (JSON)
         // json_decode(..., true) → transforme le JSON en tableau PHP
         // Le résultat est stocké dans $payload
- 
+
         if (!is_array($payload) || json_last_error() !== JSON_ERROR_NONE) {
-        // Vérifie deux choses : le résultat est bien un tableau
-        //                       le JSON ne contient aucune erreur
+            // Vérifie deux choses : le résultat est bien un tableau
+            //                       le JSON ne contient aucune erreur
             return null;
             // Si le JSON est invalide → on retourne null
             // Le contrôleur saura que les données sont mauvaises
         }
- 
+
         return $payload;
         // Si tout est correct → on retourne le tableau
     }
 
 
-//! ================================= RENVOYER DES ERREURS EN JSON AVEC UN CODE HTTP ==============================================================================================
+    //! ================================= RENVOYER DES ERREURS EN JSON AVEC UN CODE HTTP ==============================================================================================
     private function errorResponse(string $message, int $status): JsonResponse
     // private → utilisable seulement dans ce contrôleur
     // errorResponse → sert à renvoyer une erreur
@@ -246,7 +246,4 @@ final class CompetenceController extends AbstractController
         // ['error' => $message] → contenu JSON envoyé au client
         // $status → code HTTP de la réponse
     }
-
 }
-
-

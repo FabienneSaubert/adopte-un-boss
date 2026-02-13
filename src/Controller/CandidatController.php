@@ -179,7 +179,7 @@ final class CandidatController extends AbstractController
         if (array_key_exists('niveau_etude', $data)) {
             // Si oui, alors on vérifie si la valeur correspond bien au fichier ENUM 
             // et on la stocke dans $niveauEtude
-            
+
             // Validation de l'enum NiveauEtude
             // TryFrom = méthode pour énum, permet de comparerl'entrée avec les valaeurs présentes dans 
             // l'enum niveau_etude. Si match -> retourne une instance, sinon retourne null;
@@ -277,7 +277,7 @@ final class CandidatController extends AbstractController
             'infos_visibles' => $candidat->isInfosVisibles(),
             'uuid' => $candidat->getUuid(),
             'cv' => $candidat->getCv(),
-            'niveau_etude' => $candidat->getNiveauEtude()?->value,
+            'niveau_etude' => $candidat->getNiveauEtude(),
             "utilisateur" => [
                 "nom" => $candidat->getUtilisateur()->getNom(),
                 "prenom" => $candidat->getUtilisateur()->getPrenom(),
@@ -288,8 +288,9 @@ final class CandidatController extends AbstractController
             'competences' => array_map(
                 fn(Competence $c) => [
                     'id' => $c->getId(),
-                    'type' => $c->getDomaine(),
+                    'type' => $c->getType(),
                     'nom' => $c->getNom(),
+                    'domaine' => $c->getDomaine()
                 ],
                 $candidat->getCompetences()->toArray()
             ),

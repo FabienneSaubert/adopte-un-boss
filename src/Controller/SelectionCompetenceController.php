@@ -191,7 +191,7 @@ final class SelectionCompetenceController extends AbstractController
             'offre' => $selectionCompetence->getOffre() ? [
                 'id' => $selectionCompetence->getOffre()->getId(),
                 'intitule' => $selectionCompetence->getOffre()->getIntitule(),
-                'statut_offre' => $selectionCompetence->getOffre()->getStatutOffre()?->value,
+                'statut_offre' => $selectionCompetence->getOffre()->getStatutOffre(),
             ] : null,
             'competence' => $selectionCompetence->getCompetence() ? [
                 'id' => $selectionCompetence->getCompetence()->getId(),
