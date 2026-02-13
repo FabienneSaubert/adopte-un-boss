@@ -9,6 +9,7 @@ use App\Parser\EntrepriseInputParser;
 use App\Parser\UtilisateurInputParser;
 use App\Repository\EntrepriseRepository;
 use App\Repository\RecruteurRepository;
+use App\Repository\UtilisateurRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -34,6 +35,8 @@ final class RecruteurController extends AbstractController
     public function new(
         Request $request,
         UtilisateurInputParser $utilisateurInputParser,
+        UtilisateurRepository $utilisateurRepository,
+        RecruteurRepository $recruteurRepository,
         EntrepriseInputParser $entrepriseInputParser,
         UtilisateurFactory $utilisateurFactory,
         EntrepriseFactory $entrepriseFactory,
@@ -50,6 +53,11 @@ final class RecruteurController extends AbstractController
         $errorMessage = $utilisateurInputParser->validate($data);
         if ($errorMessage !== null) {
             return $this->errorResponse($errorMessage, Response::HTTP_BAD_REQUEST);
+        }
+
+        $emailExistant = $utilisateurRepository->findOneBy(['email' => $data["email"]]);
+        if ($emailExistant) {
+            return $this->errorResponse("Un utilisateur avec la même adresse mail existe déjà. Veuillez vous connectez ou créer un compte avec une nouvelle adresse.", Response::HTTP_BAD_REQUEST);
         }
 
         $posteError = null;
@@ -71,6 +79,11 @@ final class RecruteurController extends AbstractController
             $emailPro = null;
         }
         $data["email_pro"] = $emailPro;
+
+        $emailProExistant = $recruteurRepository->findOneBy(['email_pro' => $data["email_pro"]]);
+        if ($emailProExistant) {
+            return $this->errorResponse("Un utilisateur avec la même adresse mail professionnelle existe déjà.", Response::HTTP_BAD_REQUEST);
+        }
 
         $telephonePro = (string) ($data["telephone_pro"] ?? null);
         if ($telephonePro !== null && $telephonePro !== '') {
