@@ -10,10 +10,6 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
-use App\Entity\SelectionCompetence;
-use App\Entity\Candidature;
-use App\Entity\Departement;
-use App\Entity\Recruteur;
 
 #[ORM\Entity(repositoryClass: OffreRepository::class)]
 class Offre
