@@ -10,6 +10,10 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use App\Entity\SelectionCompetence;
+use App\Entity\Candidature;
+use App\Entity\Departement;
+use App\Entity\Recruteur;
 
 #[ORM\Entity(repositoryClass: OffreRepository::class)]
 class Offre
@@ -19,7 +23,7 @@ class Offre
     #[ORM\Column]
     private ?int $id = null;
 
-   #[ORM\Column(enumType: DomaineActivite::class)]
+    #[ORM\Column(enumType: DomaineActivite::class)]
     private ?DomaineActivite $categorie_offre = null;
 
     #[ORM\Column(length: 150)]

@@ -198,7 +198,7 @@ final class CompetenceController extends AbstractController
             "type" => $competence->getType()?->value,
             // Valeur string de l’ENUM
 
-            "domaine"=>$competence->getDomaine()->value
+            "domaine"=>$competence->getDomaine()?->value
             // Valeur string de l’ENUM
 
         ];

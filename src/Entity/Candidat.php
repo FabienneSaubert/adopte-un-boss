@@ -7,6 +7,10 @@ use App\Repository\CandidatRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use App\Entity\Competence;
+use App\Entity\Utilisateur;
+use App\Entity\Departement;
+use App\Entity\Candidature;
 
 #[ORM\Entity(repositoryClass: CandidatRepository::class)]
 class Candidat
