@@ -14,6 +14,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Uid\Uuid;
 
@@ -269,6 +270,131 @@ final class CandidatController extends AbstractController
         return $this->json(null, Response::HTTP_NO_CONTENT);
     }
 
+    // Uploader CV
+    #[Route('/api/candidat/{id}/upload-cv', name: 'api_candidat_upload_cv', methods: ['POST'])]
+    public function uploadCv(int $id, Request $request, EntityManagerInterface $em, CandidatRepository $candidatRepository): JsonResponse
+    {
+        $candidat = $em->$candidatRepository->find($id);
+
+        if (!$candidat) {
+            return $this->json(['error' => 'Candidat non trouvé'], Response::HTTP_NOT_FOUND);
+        }
+
+        /** @var UploadedFile $file */
+        $file = $request->files->get('cv');
+
+        if (!$file) {
+            return $this->json(['error' => 'Aucun fichier envoyé'], Response::HTTP_BAD_REQUEST);
+        }
+
+        // Vérifier le type de fichier
+        $formastAutorises = [
+            'application/pdf',
+            'application/msword',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        ];
+
+        if (!in_array($file->getMimeType(), $formastAutorises)) {
+            return $this->json(
+                ['error' => 'Format de fichier non autorisé. Utilisez PDF ou Word.'],
+                Response::HTTP_BAD_REQUEST
+            );
+        }
+
+        // Vérifier la taille (max 5MB)
+        if ($file->getSize() > 5 * 1024 * 1024) {
+            return $this->json(
+                ['error' => 'Fichier trop volumineux (max 5MB)'],
+                Response::HTTP_BAD_REQUEST
+            );
+        }
+
+        // Définir le dossier d'upload
+        $uploadDir = $this->getParameter('kernel.project_dir') . '/public/uploads/cv';
+
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0777, true);
+        }
+
+        // Générer un nom unique
+        $newFilename = uniqid() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
+
+        try {
+            // Supprimer l'ancien fichier si existe
+            if ($candidat->getCvFilename()) {
+                $oldFile = $uploadDir . '/' . $candidat->getCvFilename();
+                if (file_exists($oldFile)) {
+                    unlink($oldFile);
+                }
+            }
+
+            // Déplacer le nouveau fichier
+            $file->move($uploadDir, $newFilename);
+
+            // Mettre à jour la base de données
+            $candidat->setCvFilename($newFilename);
+            $em->flush();
+
+            return $this->json([
+                'message' => 'CV téléversé avec succès',
+                'filename' => $newFilename
+            ]);
+        } catch (\Exception $e) {
+            return $this->json(
+                ['error' => 'Erreur lors du téléversement : ' . $e->getMessage()],
+                Response::HTTP_INTERNAL_SERVER_ERROR
+            );
+        }
+    }
+
+    // Télécharger CV
+    #[Route('/api/candidat/{id}/download-cv', name: 'api_candidat_download_cv', methods: ['GET'])]
+    public function downloadCv(int $id, EntityManagerInterface $em): Response
+    {
+        $candidat = $em->getRepository(Candidat::class)->find($id);
+
+        if (!$candidat || !$candidat->getCvFilename()) {
+            return $this->json(['error' => 'CV non trouvé'], Response::HTTP_NOT_FOUND);
+        }
+
+        $filePath = $this->getParameter('kernel.project_dir') . '/public/uploads/cv/' . $candidat->getCvFilename();
+
+        if (!file_exists($filePath)) {
+            return $this->json(['error' => 'Fichier non trouvé sur le serveur'], Response::HTTP_NOT_FOUND);
+        }
+
+        return $this->file($filePath);
+    }
+
+    // DELETE CV OPLOADE
+    #[Route('/api/candidat/{id}/delete-cv', name: 'api_candidat_delete_cv', methods: ['DELETE'])]
+    public function deleteCv(int $id, EntityManagerInterface $em): JsonResponse
+    {
+        $candidat = $em->getRepository(Candidat::class)->find($id);
+
+        if (!$candidat) {
+            return $this->json(['error' => 'Candidat non trouvé'], Response::HTTP_NOT_FOUND);
+        }
+
+        if (!$candidat->getCvFilename()) {
+            return $this->json(['error' => 'Aucun CV à supprimer'], Response::HTTP_NOT_FOUND);
+        }
+
+        $uploadDir = $this->getParameter('kernel.project_dir') . '/public/uploads/cv';
+        $filePath = $uploadDir . '/' . $candidat->getCvFilename();
+
+        // Supprimer le fichier physique
+        if (file_exists($filePath)) {
+            unlink($filePath);
+        }
+
+        // Mettre à jour la base de données
+        $candidat->setCvFilename(null);
+        $em->flush();
+
+        return $this->json(['message' => 'CV supprimé avec succès']);
+    }
+
     private function serializeCandidat(Candidat $candidat): array
     {
         return [
@@ -277,6 +403,7 @@ final class CandidatController extends AbstractController
             'infos_visibles' => $candidat->isInfosVisibles(),
             'uuid' => $candidat->getUuid(),
             'cv' => $candidat->getCv(),
+            'cvFilename' => $candidat->getCvFilename(),
             'niveau_etude' => $candidat->getNiveauEtude(),
             "utilisateur" => [
                 "nom" => $candidat->getUtilisateur()->getNom(),

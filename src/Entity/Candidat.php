@@ -25,8 +25,11 @@ class Candidat
     #[ORM\Column(length: 36)]
     private ?string $uuid = null;
 
-    #[ORM\Column(length: 150, nullable: true)]
+    #[ORM\Column(length: 255, nullable: true)]
     private ?string $cv = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $cvFilename = null;
 
     #[ORM\Column(enumType: NiveauEtude::class)]
     private ?NiveauEtude $niveau_etude = null;
@@ -105,6 +108,18 @@ class Candidat
     public function setCv(?string $cv): static
     {
         $this->cv = $cv;
+
+        return $this;
+    }
+
+    public function getCvFilename(): ?string
+    {
+        return $this->cvFilename;
+    }
+
+    public function setCvFilename(?string $cvFilename): static
+    {
+        $this->cvFilename = $cvFilename;
 
         return $this;
     }
