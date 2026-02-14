@@ -234,7 +234,15 @@ php bin/console doctrine:migrations:migrate
 
 ---
 
-### 6️⃣ Lancer le serveur de développement
+### 6️⃣ Créer la paire de clés permettant de signer les token JWT
+
+```bash
+php bin/console lexik:jwt:generate-keypair --overwrite
+```
+
+---
+
+### 7️⃣ Lancer le serveur de développement
 
 ```bash
 symfony server:start
