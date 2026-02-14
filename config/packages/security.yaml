@@ -1,31 +1,87 @@
 security:
-    # https://symfony.com/doc/current/security.html#registering-the-user-hashing-passwords
+
+    # Définit comment Symfony vérifie les mots de passe.
     password_hashers:
+        # 'auto' permet de détecter automatiquement l'algorithme utilisé (bcrypt, argon2, etc.)
+        # Compatible avec password_hash() natif de PHP.
         Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface: 'auto'
 
-    # https://symfony.com/doc/current/security.html#loading-the-user-the-user-provider
+    # Définit où Symfony doit chercher les utilisateurs.
     providers:
-        users_in_memory: { memory: null }
+        # Ici : dans la base de données via l'entité Utilisateur.
+        app_user_provider:
+            entity:
+                # Entité utilisée pour l'authentification
+                class: App\Entity\Utilisateur
+                # Colonne utilisée pour identifier l'utilisateur
+                property: email
 
+    # Un firewall est une zone de sécurité.
+    # Symfony applique le PREMIER firewall dont le pattern correspond à l’URL.
     firewalls:
+
+        # Désactive la sécurité pour le profiler et les assets.
+        # Uniquement utile en développement.
         dev:
-            # Ensure dev tools and static assets are always allowed
             pattern: ^/(_profiler|_wdt|assets|build)/
             security: false
-        main:
-            lazy: true
-            provider: users_in_memory
 
-            # Activate different ways to authenticate:
-            # https://symfony.com/doc/current/security.html#the-firewall
+        # Gère uniquement la route de connexion.
+        login:
+            # S'applique uniquement à /api/login
+            pattern: ^/api/login
+            # Aucune session (API REST = sans état)
+            stateless: true
+            # On utilise le provider pour l'accès à la base de données via l'entité Utilisateur
+            provider: app_user_provider
 
-            # https://symfony.com/doc/current/security/impersonating_user.html
-            # switch_user: true
+            # Active l'authentification JSON automatique
+            json_login:
+                # Route interceptée automatiquement, aucun contrôleur nécessaire
+                check_path: /api/login
+                # Champ dans le JSON envoyé par le client utilisé comme identifiant
+                username_path: email
+                # Champ dans le JSON envoyé par le client contenant le mot de passe
+                password_path: password
 
-    # Note: Only the *first* matching rule is applied
+                # Handlers fournis par LexikJWT
+                # En cas de succès → génération automatique du token JWT
+                success_handler: lexik_jwt_authentication.handler.authentication_success
+                # En cas d’échec → renvoi d'une erreur JSON
+                failure_handler: lexik_jwt_authentication.handler.authentication_failure
+
+        # Gère toutes les autres routes API
+        api:
+            # S'applique à toutes les routes commençants par /api/login
+            pattern: ^/api
+            # Aucune session
+            stateless: true
+            # Provider permettant la création automatique de l'instance utilisateur pour chaque route dans ce firewall.
+            # Cela va permettre dans les contrôleurs de récupérer les données utilisateur en base de données via le getter getUser()
+            provider: app_user_provider
+
+            # Active la vérification automatique du token JWT
+            # Symfony vérifie :
+            # - la signature
+            # - l'expiration
+            # - la validité du token
+            jwt: ~
+
+    # Définit qui peut accéder à quoi.
+    # IMPORTANT : seule la première règle correspondante est appliquée.
     access_control:
-        # - { path: ^/admin, roles: ROLE_ADMIN }
-        # - { path: ^/profile, roles: ROLE_USER }
+        # Routes d'inscription selon le rôle utilisateur, accessibles publiquement
+        - { path: ^/api/candidat, methods: [POST], roles: PUBLIC_ACCESS }
+        - { path: ^/api/recruteur, methods: [POST], roles: PUBLIC_ACCESS }
+
+        # Route de connexion accessible publiquement
+        - { path: ^/api/login, roles: PUBLIC_ACCESS }
+
+        # Lecture publique des offres
+        - { path: ^/api/offre, methods: [GET], roles: PUBLIC_ACCESS }
+
+        # Toutes les autres routes /api nécessitent un utilisateur authentifié
+        - { path: ^/api, roles: IS_AUTHENTICATED_FULLY }
 
 when@test:
     security:

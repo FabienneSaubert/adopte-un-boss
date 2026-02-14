@@ -9,3 +9,8 @@
 
 controllers:
     resource: routing.controllers
+
+# Route déclarée permettant au firewall de l'utiliser pour la connexion
+api_login:
+    path: /api/login
+    methods: POST
