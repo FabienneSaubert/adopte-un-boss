@@ -314,7 +314,8 @@ final class CandidatController extends AbstractController
         // Définir le dossier d'upload
         // récupère le chemin racine du projet Symfony et concaténation avec dossier cible 
         // getParameter = méthode Symfony
-        $uploadDir = $this->getParameter('kernel.project_dir') . '/public/uploads/cv';
+        $uuid = $candidat->getUuid(); // On récupère l'uuid du candidat
+        $uploadDir = $this->getParameter('kernel.project_dir') . '/var/storage/cv/' . $uuid;
 
         // Si le dossier n'existe pas => on le crée 
         if (!is_dir($uploadDir)) {
@@ -378,8 +379,9 @@ final class CandidatController extends AbstractController
             return $this->errorResponse("Le candidat ou le CV n'existe pas.", Response::HTTP_NOT_FOUND);
         }
 
+        $uuid = $candidat->getUuid(); // On récupère l'uuid du candidat
         // chemin vers le fichier physique concaténé avec le nom du fichier .
-        $filePath = $this->getParameter('kernel.project_dir') . '/public/uploads/cv/' . $candidat->getCvFilename();
+        $filePath = $this->getParameter('kernel.project_dir') . '/var/storage/cv/' . $uuid .'/'. $candidat->getCvFilename();
 
         // Vérif : Si le fichier n'existe
         if (!file_exists($filePath)) {
@@ -406,8 +408,9 @@ final class CandidatController extends AbstractController
             return $this->errorResponse("Aucun Cv à supprimer.", Response::HTTP_NOT_FOUND);
         }
 
+        $uuid = $candidat->getUuid(); // On récupère l'uuid du candidat
         // variable stockant le chemin vers le dossier qui contient les cv
-        $uploadDir = $this->getParameter('kernel.project_dir') . '/public/uploads/cv';
+        $uploadDir = $this->getParameter('kernel.project_dir') . '/var/storage/cv/' . $uuid;
         // variable stockant le chemin vers le fichier lui-même
         $filePath = $uploadDir . '/' . $candidat->getCvFilename();
 
