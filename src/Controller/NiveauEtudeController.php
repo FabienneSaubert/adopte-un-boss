@@ -15,10 +15,7 @@ class NiveauEtudeController extends AbstractController
         $niveaux = [];
 
         foreach (NiveauEtude::cases() as $niveau) {
-            $niveaux[] = [
-                'value' => $niveau->value,
-                'label' => $niveau->value,
-            ];
+            $niveaux[] = $niveau->value;
         }
 
         return $this->json($niveaux);
