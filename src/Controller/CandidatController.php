@@ -271,7 +271,7 @@ final class CandidatController extends AbstractController
     }
 
     // Uploader CV
-    #[Route('/api/candidat/{id}/upload-cv', name: 'api_candidat_upload_cv', methods: ['POST'])]
+    #[Route('/{id}/upload-cv', name: 'api_candidat_upload_cv', methods: ['POST'])]
     public function uploadCv(int $id, Request $request, EntityManagerInterface $entityManager, CandidatRepository $candidatRepository): JsonResponse
     {
         // recherche du candidat par id
@@ -367,7 +367,7 @@ final class CandidatController extends AbstractController
     }
 
     // Télécharger CV
-    #[Route('/api/candidat/{id}/download-cv', name: 'api_candidat_download_cv', methods: ['GET'])]
+    #[Route('/{id}/download-cv', name: 'api_candidat_download_cv', methods: ['GET'])]
     public function downloadCv(int $id, EntityManagerInterface $entityManager,  CandidatRepository $candidatRepository): Response
     {
         // selection du candidat par id
@@ -390,7 +390,7 @@ final class CandidatController extends AbstractController
     }
 
     // DELETE CV UPLOADE
-    #[Route('/api/candidat/{id}/delete-cv', name: 'api_candidat_delete_cv', methods: ['DELETE'])]
+    #[Route('/{id}/delete-cv', name: 'api_candidat_delete_cv', methods: ['DELETE'])]
     public function deleteCv(int $id, EntityManagerInterface $entityManager, CandidatRepository $candidatRepository): JsonResponse
     {
         // récupère le candidat par id
