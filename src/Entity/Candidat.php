@@ -26,7 +26,7 @@ class Candidat
     private ?string $uuid = null;
 
     #[ORM\Column(length: 255, nullable: true)]
-    private ?string $cv = null;
+    private ?string $accroche = null;
 
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $cvFilename = null;
@@ -100,14 +100,14 @@ class Candidat
         return $this;
     }
 
-    public function getCv(): ?string
+    public function getAccroche(): ?string
     {
-        return $this->cv;
+        return $this->accroche;
     }
 
-    public function setCv(?string $cv): static
+    public function setAccroche(?string $accroche): static
     {
-        $this->cv = $cv;
+        $this->accroche = $accroche;
 
         return $this;
     }

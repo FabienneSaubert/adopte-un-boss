@@ -59,8 +59,8 @@ final class CandidatController extends AbstractController
         $data['infos_visibles'] = true;
         $data['niveau_etude'] = NiveauEtude::SANS_DIPLOME;
 
-        // CV optionnel
-        $data['cv'] = null;
+        // Texte d'accroche optionnelle
+        $data['accroche'] = null;
 
         // Génération de l'UUID (package Symfony)
         $data['uuid'] = Uuid::v4()->toRfc4122();
@@ -203,11 +203,11 @@ final class CandidatController extends AbstractController
         }
 
         // Mise à jour du CV
-        if (array_key_exists('cv', $data)) {
-            if (!is_null($data['cv']) && !is_string($data['cv'])) {
+        if (array_key_exists('accroche', $data)) {
+            if (!is_null($data['accroche']) && !is_string($data['accroche'])) {
                 return $this->errorResponse('cv doit être une chaîne de caractères', Response::HTTP_BAD_REQUEST);
             }
-            $candidat->setCv($data['cv']);
+            $candidat->setCv($data['accroche']);
         }
 
         // Mise à jour des compétences
@@ -434,7 +434,7 @@ final class CandidatController extends AbstractController
             'profil_visible' => $candidat->isProfilVisible(),
             'infos_visibles' => $candidat->isInfosVisibles(),
             'uuid' => $candidat->getUuid(),
-            'cv' => $candidat->getCv(),
+            'accroche' => $candidat->getAccroche(),
             'cvFilename' => $candidat->getCvFilename(),
             'niveau_etude' => $candidat->getNiveauEtude(),
             "utilisateur" => [
