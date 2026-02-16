@@ -207,7 +207,7 @@ final class CandidatController extends AbstractController
             if (!is_null($data['accroche']) && !is_string($data['accroche'])) {
                 return $this->errorResponse('cv doit être une chaîne de caractères', Response::HTTP_BAD_REQUEST);
             }
-            $candidat->setCv($data['accroche']);
+            $candidat->setAccroche($data['accroche']);
         }
 
         // Mise à jour des compétences
