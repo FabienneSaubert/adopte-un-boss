@@ -391,19 +391,19 @@ final class CandidatController extends AbstractController
 
     // DELETE CV UPLOADE
     #[Route('/api/candidat/{id}/delete-cv', name: 'api_candidat_delete_cv', methods: ['DELETE'])]
-    public function deleteCv(int $id, EntityManagerInterface $entityManager, CandidatRepository$candidatRepository): JsonResponse
+    public function deleteCv(int $id, EntityManagerInterface $entityManager, CandidatRepository $candidatRepository): JsonResponse
     {
         // récupère le candidat par id
         $candidat = $candidatRepository->find($id);
 
         // vérif : si le candidat n'existe pas
         if (!$candidat) {
-             return $this->errorResponse("Candidat non trouvé.", Response::HTTP_NOT_FOUND);
+            return $this->errorResponse("Candidat non trouvé.", Response::HTTP_NOT_FOUND);
         }
 
         // Vérif : Si le nom du fichier n'existe pas
         if (!$candidat->getCvFilename()) {
-             return $this->errorResponse("Aucun Cv à supprimer.", Response::HTTP_NOT_FOUND);
+            return $this->errorResponse("Aucun Cv à supprimer.", Response::HTTP_NOT_FOUND);
         }
 
         // variable stockant le chemin vers le dossier qui contient les cv
