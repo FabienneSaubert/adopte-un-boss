@@ -257,6 +257,19 @@ final class OffreController extends AbstractController
             $offre->setTeletravailPossible($teletravailPossible);
         }
 
+        if (array_key_exists('numero_departement', $data) || $isPut) {
+            $numeroDepartementError = null;
+            $numeroDepartement = $this->parseNumeroDepartement((string) ($data["numero_departement"] ?? null), true, $numeroDepartementError);
+            if ($numeroDepartement === null) {
+                return $this->errorResponse($numeroDepartementError ?? "Le N° de département n'est pas valide.", Response::HTTP_BAD_REQUEST);
+            }
+            $departement = $departementRepository->findOneBy(['numero' => $numeroDepartement]);
+            if ($departement === null) {
+                return $this->errorResponse("Le N° de département est introuvable en base de données.", Response::HTTP_BAD_REQUEST);
+            }
+            $offre->setDepartement($departement);
+        }
+
         if (array_key_exists('coeff_departement', $data) || $isPut) {
             $coeffdepartementError = null;
             $coeffdepartement = $this->parseCoeffDepartement((string) ($data["coeff_departement"] ?? null), true, $coeffdepartementError);
