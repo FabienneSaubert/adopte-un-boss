@@ -208,7 +208,7 @@ final class OffreController extends AbstractController
         $offre = $offreRepository->find($id);
 
         if (!$offre) {
-            return $this->errorResponse("Demande de contact introuvable.", Response::HTTP_NOT_FOUND);
+            return $this->errorResponse("Offre introuvable.", Response::HTTP_NOT_FOUND);
         }
 
         $data = $this->decodeJson($request);
@@ -299,6 +299,20 @@ final class OffreController extends AbstractController
             $offre->setTeletravailPossible($teletravailPossible);
         }
 
+        $numeroDepartement = (string) ($data["numero_departement"] ?? null);
+        if ($numeroDepartement && $numeroDepartement !== '') {
+            $numeroDepartementError = null;
+            $numeroDepartement = $this->parseNumeroDepartement($numeroDepartement, true, $numeroDepartementError);
+            if ($numeroDepartement === null) {
+                return $this->errorResponse($numeroDepartementError ?? "Le N° de département n'est pas valide.", Response::HTTP_BAD_REQUEST);
+            }
+            $departement = $departementRepository->findOneBy(['numero' => $numeroDepartement]);
+            if ($departement === null) {
+                return $this->errorResponse("Le N° de département est introuvable en base de données.", Response::HTTP_BAD_REQUEST);
+            }
+            $offre->setDepartement($departement);
+        }
+
         $coeffdepartement = (string) ($data["coeff_departement"] ?? null);
         if ($coeffdepartement !== null && $coeffdepartement !== '') {
             $coeffdepartementError = null;
@@ -370,7 +384,7 @@ final class OffreController extends AbstractController
         $offre = $offreRepository->find($id);
 
         if (!$offre) {
-            return $this->errorResponse("Demande de contact introuvable.", Response::HTTP_NOT_FOUND);
+            return $this->errorResponse("Offre introuvable.", Response::HTTP_NOT_FOUND);
         }
 
         $entityManager->remove($offre);
