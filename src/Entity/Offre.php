@@ -69,7 +69,12 @@ class Offre
     /**
      * @var Collection<int, SelectionCompetence>
      */
-    #[ORM\OneToMany(targetEntity: SelectionCompetence::class, mappedBy: 'offre')]
+    #[ORM\OneToMany(
+        targetEntity: SelectionCompetence::class,
+        mappedBy: 'offre',
+        cascade: ['persist', 'remove'],
+        orphanRemoval: true
+    )]
     private Collection $selectionCompetences;
 
     public function __construct()

@@ -208,7 +208,7 @@ final class OffreController extends AbstractController
         $offre = $offreRepository->find($id);
 
         if (!$offre) {
-            return $this->errorResponse("Demande de contact introuvable.", Response::HTTP_NOT_FOUND);
+            return $this->errorResponse("Offre introuvable.", Response::HTTP_NOT_FOUND);
         }
 
         $data = $this->decodeJson($request);
@@ -330,6 +330,31 @@ final class OffreController extends AbstractController
             }
         }
 
+        $selectionCompetences = (array) ($data["selection_competences"] ?? null);
+        if ($selectionCompetences !== null && $selectionCompetences !== '') {
+            $selectionCompetencesError = null;
+            $selectionCompetences = $this->parseSelectionCompetences($selectionCompetences, true, $selectionCompetencesError);
+            if ($selectionCompetences === null) {
+                return $this->errorResponse($selectionCompetencesError ?? "La sélection des compétences n'est pas valide.", Response::HTTP_BAD_REQUEST);
+            }
+
+            // Suppression de toutes les sélections de compétence
+            $offre->getSelectionCompetences()->clear();
+            $entityManager->flush();
+
+            $selectionCompetencesError = null;
+            $this->ajouterSelectionCompetences(
+                $offre,
+                $selectionCompetences,
+                $competenceRepository,
+                $entityManager,
+                $selectionCompetencesError
+            );
+            if ($selectionCompetencesError !== null) {
+                return $this->errorResponse($selectionCompetencesError, Response::HTTP_BAD_REQUEST);
+            }        
+        }
+
         // Pour l'augmentation du nombre de vues, on utilise pour le moment un attribut "nombre_de_vues" à envoyer à l'API
         // Il est donc possible d'ajouter autant de nombre de vues de la part du client -> à améliorer
         // L'implémentation est pour le moment simple.
@@ -361,7 +386,7 @@ final class OffreController extends AbstractController
         $offre = $offreRepository->find($id);
 
         if (!$offre) {
-            return $this->errorResponse("Demande de contact introuvable.", Response::HTTP_NOT_FOUND);
+            return $this->errorResponse("Offre introuvable.", Response::HTTP_NOT_FOUND);
         }
 
         $entityManager->remove($offre);
@@ -387,6 +412,15 @@ final class OffreController extends AbstractController
                 "numero" => $offre->getDepartement()->getNumero(),
                 "nom" => $offre->getDepartement()->getNom()
             ],
+            "selection_competences" => array_map(
+                fn(SelectionCompetence $s) => [
+                    'id' => $s->getId(),
+                    'competence_id' => $s->getCompetence()->getId(),
+                    'competence_nom' => $s->getCompetence()->getNom(),
+                    'coeff' => $s->getCoeffCompetence(),
+                ],
+                $offre->getSelectionCompetences()->toArray()
+            ),
             "recruteur" => [
                 "poste" => $offre->getRecruteur()->getPoste(),
                 "email_pro" => $offre->getRecruteur()->getEmailPro(),
