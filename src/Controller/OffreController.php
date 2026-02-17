@@ -3,9 +3,11 @@
 namespace App\Controller;
 
 use App\Entity\Offre;
+use App\Entity\SelectionCompetence;
 use App\Enum\DomaineActivite;
 use App\Enum\NiveauEtude;
 use App\Enum\StatutOffre;
+use App\Repository\CompetenceRepository;
 use App\Repository\DepartementRepository;
 use App\Repository\OffreRepository;
 use App\Repository\RecruteurRepository;
@@ -36,6 +38,7 @@ final class OffreController extends AbstractController
         Request $request,
         RecruteurRepository $recruteurRepository,
         DepartementRepository $departementRepository,
+        CompetenceRepository $competenceRepository,
         EntityManagerInterface $entityManager
     ): JsonResponse
     {
@@ -151,6 +154,28 @@ final class OffreController extends AbstractController
         ;
         // Le statut de l'offre est déjà défini par défaut comme étant "En attente"
 
+        // Gestion de la sélection des compétences
+        $selectionCompetencesError = null;
+        $selectionCompetences = $this->parseSelectionCompetences((array) ($data["selection_competences"] ?? null), true, $selectionCompetencesError);
+        if ($selectionCompetences === null) {
+            return $this->errorResponse($selectionCompetencesError ?? "La sélection des compétences n'est pas valide.", Response::HTTP_BAD_REQUEST);
+        }
+        // Une fois que les IDs et les coeffs sont valides, on peut appeler une méthode
+        // privée qui va se charger de remplir la table selectionCompetence associée
+        // On remet à null la variable qui va contenir l'éventuel message d'erreur
+        $selectionCompetencesError = null;
+        // Puis on appelle la méthode
+        $this->ajouterSelectionCompetences(
+            $offre,
+            $selectionCompetences,
+            $competenceRepository,
+            $entityManager,
+            $selectionCompetencesError
+        );
+        if ($selectionCompetencesError !== null) {
+            return $this->errorResponse($selectionCompetencesError, Response::HTTP_BAD_REQUEST);
+        }
+
         $entityManager->persist($offre);
 
         $entityManager->flush();
@@ -176,13 +201,14 @@ final class OffreController extends AbstractController
         Request $request,
         OffreRepository $offreRepository,
         DepartementRepository $departementRepository,
+        CompetenceRepository $competenceRepository,
         EntityManagerInterface $entityManager
     ): JsonResponse
     {
         $offre = $offreRepository->find($id);
 
         if (!$offre) {
-            return $this->errorResponse("Demande de contact introuvable.", Response::HTTP_NOT_FOUND);
+            return $this->errorResponse("Offre introuvable.", Response::HTTP_NOT_FOUND);
         }
 
         $data = $this->decodeJson($request);
@@ -273,6 +299,20 @@ final class OffreController extends AbstractController
             $offre->setTeletravailPossible($teletravailPossible);
         }
 
+        $numeroDepartement = (string) ($data["numero_departement"] ?? null);
+        if ($numeroDepartement && $numeroDepartement !== '') {
+            $numeroDepartementError = null;
+            $numeroDepartement = $this->parseNumeroDepartement($numeroDepartement, true, $numeroDepartementError);
+            if ($numeroDepartement === null) {
+                return $this->errorResponse($numeroDepartementError ?? "Le N° de département n'est pas valide.", Response::HTTP_BAD_REQUEST);
+            }
+            $departement = $departementRepository->findOneBy(['numero' => $numeroDepartement]);
+            if ($departement === null) {
+                return $this->errorResponse("Le N° de département est introuvable en base de données.", Response::HTTP_BAD_REQUEST);
+            }
+            $offre->setDepartement($departement);
+        }
+
         $coeffdepartement = (string) ($data["coeff_departement"] ?? null);
         if ($coeffdepartement !== null && $coeffdepartement !== '') {
             $coeffdepartementError = null;
@@ -283,6 +323,31 @@ final class OffreController extends AbstractController
             else {
                 return $this->errorResponse($coeffdepartementError ?? "Le coefficient du département n'est pas valide.", Response::HTTP_BAD_REQUEST);
             }
+        }
+
+        $selectionCompetences = (array) ($data["selection_competences"] ?? null);
+        if ($selectionCompetences !== null && $selectionCompetences !== '') {
+            $selectionCompetencesError = null;
+            $selectionCompetences = $this->parseSelectionCompetences($selectionCompetences, true, $selectionCompetencesError);
+            if ($selectionCompetences === null) {
+                return $this->errorResponse($selectionCompetencesError ?? "La sélection des compétences n'est pas valide.", Response::HTTP_BAD_REQUEST);
+            }
+
+            // Suppression de toutes les sélections de compétence
+            $offre->getSelectionCompetences()->clear();
+            $entityManager->flush();
+
+            $selectionCompetencesError = null;
+            $this->ajouterSelectionCompetences(
+                $offre,
+                $selectionCompetences,
+                $competenceRepository,
+                $entityManager,
+                $selectionCompetencesError
+            );
+            if ($selectionCompetencesError !== null) {
+                return $this->errorResponse($selectionCompetencesError, Response::HTTP_BAD_REQUEST);
+            }        
         }
 
         // Pour l'augmentation du nombre de vues, on utilise pour le moment un attribut "nombre_de_vues" à envoyer à l'API
@@ -319,7 +384,7 @@ final class OffreController extends AbstractController
         $offre = $offreRepository->find($id);
 
         if (!$offre) {
-            return $this->errorResponse("Demande de contact introuvable.", Response::HTTP_NOT_FOUND);
+            return $this->errorResponse("Offre introuvable.", Response::HTTP_NOT_FOUND);
         }
 
         $entityManager->remove($offre);
@@ -345,6 +410,15 @@ final class OffreController extends AbstractController
                 "numero" => $offre->getDepartement()->getNumero(),
                 "nom" => $offre->getDepartement()->getNom()
             ],
+            "selection_competences" => array_map(
+                fn(SelectionCompetence $s) => [
+                    'id' => $s->getId(),
+                    'competence_id' => $s->getCompetence()->getId(),
+                    'competence_nom' => $s->getCompetence()->getNom(),
+                    'coeff' => $s->getCoeffCompetence(),
+                ],
+                $offre->getSelectionCompetences()->toArray()
+            ),
             "recruteur" => [
                 "poste" => $offre->getRecruteur()->getPoste(),
                 "email_pro" => $offre->getRecruteur()->getEmailPro(),
@@ -567,6 +641,96 @@ final class OffreController extends AbstractController
 
         // Si tout est valide, on retourne le coefficient du département
         return $value;
+    }
+
+    private function parseSelectionCompetences(mixed $value, bool $required, ?string &$error)
+    {
+        if ($value === null || !is_array($value) || $value === []) {
+            if ($required) {
+                $error = "La sélection des compétences est requise.";
+            }
+            return null;
+        }
+
+        foreach ($value as $index => $selectionCompetence) {
+            if (!is_array($selectionCompetence)) {
+                $error = "La sélection de compétence n°".($index+1)." n'est pas valide.";
+                return null;
+            }
+
+            if (!array_key_exists('competence_id',$selectionCompetence)) {
+                $error = "La sélection de compétence n°".($index+1)." ne contient pas d'ID de compétence.";
+                return null;
+            }
+            if (!array_key_exists('coeff',$selectionCompetence)) {
+                $error = "La sélection de compétence n°".($index+1)." ne contient pas de coefficient.";
+                return null;
+            }
+
+            $competenceID = $selectionCompetence['competence_id'];
+            $coeff = $selectionCompetence['coeff'];
+
+            if ($competenceID === null || $competenceID === '') {
+                $error = "L'ID de la compétence de la sélection n°".($index+1)." n'est pas valide.";
+                return null;
+            }
+            if ($coeff === null || $coeff === '') {
+                $error = "Le coefficient de la sélection n°".($index+1)." n'est pas valide.";
+                return null;
+            }
+
+            $coeff = (int) $coeff;
+            
+            if ($coeff < 1 || $coeff > 10) {
+                $error = "Le coefficient de la sélection n°".($index+1)." n'est pas compris entre 1 et 10.";
+                return null;
+            }
+        }
+
+        return $value;
+    }
+
+    /**
+     * Permet d'ajouter les sélections de compétences d'une offre
+     * @param Offre $offre
+     * @param array $selectionCompetences
+     * @param CompetenceRepository $competenceRepository
+     * @param EntityManagerInterface $entityManager
+     * @param mixed $error
+     * @return void
+     */
+    private function ajouterSelectionCompetences(
+        Offre $offre,
+        array $selectionCompetences,
+        CompetenceRepository $competenceRepository,
+        EntityManagerInterface $entityManager,
+        ?string &$error
+    )
+    {
+        // On parcourt le tableau pour cette fois-ci faire la validation en base de données
+        foreach ($selectionCompetences as $index => $selectionCompetence) {
+            $competenceID = $selectionCompetence['competence_id'];
+            $coeff = $selectionCompetence['coeff'];
+
+            // Vérification de l'éxistance de la compétence en base de données
+            $competence = $competenceRepository->find($competenceID);
+            if ($competence === null) {
+                $error = "L'ID de la compétence de la sélection n°".($index+1)." n'existe pas en base de données.";
+                return;
+            }
+
+            // Création de l'instance de la sélection de la compétence
+            $selectionCompetence = (new SelectionCompetence())
+                ->setCompetence($competence)
+                ->setCoeffCompetence($coeff)
+            ;
+
+            // Enregistrement de l'instance de la sélection en mémoire, pour enregistrement en base de données
+            $entityManager->persist($selectionCompetence);
+
+            // Ajout de la sélection à l'offre
+            $offre->addSelectionCompetence($selectionCompetence);
+        }
     }
 
     private function parseStatutOffre(mixed $value, bool $required, ?string &$error)
