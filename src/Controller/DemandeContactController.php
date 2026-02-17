@@ -97,7 +97,7 @@ final class DemandeContactController extends AbstractController
         return $this->json($this->serializeDemandeContact($demandecontact));
     }
 
-    #[Route('/{id}', name: 'api_demandecontact_put_item', methods: ['PUT'])]
+    #[Route('/{id}', name: 'api_demandecontact_put_item', methods: ['PUT','PATCH'])]
     public function edit(int $id, Request $request, DemandeContactRepository $demandecontactRepository, EntityManagerInterface $entityManager): JsonResponse
     {
         $demandecontact = $demandecontactRepository->find($id);
@@ -111,76 +111,60 @@ final class DemandeContactController extends AbstractController
             return $this->errorResponse("Données dans le JSON body invalides.", Response::HTTP_BAD_REQUEST);
         }
 
-        $nom = (string) ($data["nom"] ?? null);
-        if ($nom !== null && $nom !== '') {
+        $isPut = $request->getMethod() === 'PUT';
+
+        if (array_key_exists('nom', $data) || $isPut) {
             $nomError = null;
-            $nom = $this->parseNom($nom, false, $nomError);
-            if ($nom !== null) {
-                $demandecontact->setNom($nom);
-            }
-            else {
+            $nom = $this->parseNom((string) ($data["nom"] ?? null), true, $nomError);
+            if ($nom === null) {
                 return $this->errorResponse($nomError ?? "Le nom n'est pas valide.", Response::HTTP_BAD_REQUEST);
             }
+            $demandecontact->setNom($nom);
         }
 
-        $prenom = (string) ($data["prenom"] ?? null);
-        if ($prenom !== null && $prenom !== '') {
+        if (array_key_exists('prenom', $data) || $isPut) {
             $prenomError = null;
-            $prenom = $this->parsePrenom($prenom, false, $prenomError);
-            if ($prenom !== null) {
-                $demandecontact->setPrenom($prenom);
-            }
-            else {
+            $prenom = $this->parsePrenom((string) ($data["prenom"] ?? null), true, $prenomError);
+            if ($prenom === null) {
                 return $this->errorResponse($prenomError ?? "Le prenom n'est pas valide.", Response::HTTP_BAD_REQUEST);
             }
+            $demandecontact->setPrenom($prenom);
         }
 
-        $email = (string) ($data["email"] ?? null);
-        if ($email !== null && $email !== '') {
+        if (array_key_exists('email', $data) || $isPut) {
             $emailError = null;
-            $email = $this->parseEmail($email, false, $emailError);
-            if ($email !== null) {
-                $demandecontact->setEmail($email);
-            }
-            else {
+            $email = $this->parseEmail((string) ($data["email"] ?? null), true, $emailError);
+            if ($email === null) {
                 return $this->errorResponse($emailError ?? "L'email n'est pas valide.", Response::HTTP_BAD_REQUEST);
             }
+            $demandecontact->setEmail($email);
         }
 
-        $sujet = (string) ($data["sujet"] ?? null);
-        if ($sujet !== null && $sujet !== '') {
+        if (array_key_exists('sujet', $data) || $isPut) {
             $sujetError = null;
-            $sujet = $this->parseSujet($sujet, false, $sujetError);
-            if ($sujet !== null) {
-                $demandecontact->setSujet($sujet);
-            }
-            else {
+            $sujet = $this->parseSujet((string) ($data["sujet"] ?? null), true, $sujetError);
+            if ($sujet === null) {
                 return $this->errorResponse($sujetError ?? "Le sujet n'est pas valide.", Response::HTTP_BAD_REQUEST);
             }
+            $demandecontact->setSujet($sujet);
         }
 
-        $message = (string) ($data["message"] ?? null);
-        if ($message !== null && $message !== '') {
+        if (array_key_exists('message', $data) || $isPut) {
             $messageError = null;
-            $message = $this->parseMessage($message, false, $messageError);
-            if ($message !== null) {
-                $demandecontact->setMessage($message);
-            }
-            else {
+            $message = $this->parseMessage((string) ($data["message"] ?? null), true, $messageError);
+            if ($message === null) {
                 return $this->errorResponse($messageError ?? "Le message n'est pas valide.", Response::HTTP_BAD_REQUEST);
             }
+            $demandecontact->setMessage($message);
         }
 
-        $statutDemande = (string) ($data["statut"] ?? null);
-        if ($statutDemande !== null && $statutDemande !== '') {
+        if (array_key_exists('statut', $data) || $isPut) {
             $statutError = null;
-            $statutDemande = $this->parseStatutDemande($statutDemande, false, $statutError);
-            if ($statutDemande !== null) {
-                $demandecontact->setStatutDemande($statutDemande);
-            }
-            else {
+            $statutDemande = $this->parseStatutDemande((string) ($data["statut"] ?? null), true, $statutError);
+            if ($statutDemande === null) {
                 return $this->errorResponse($statutError ?? "Le statut n'est pas valide.", Response::HTTP_BAD_REQUEST);
             }
+            $demandecontact->setStatutDemande($statutDemande);
         }
 
         $entityManager->flush();

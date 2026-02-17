@@ -195,7 +195,7 @@ final class OffreController extends AbstractController
         return $this->json($this->serializeOffre($offre));
     }
 
-    #[Route('/{id}', name: 'api_offre_put_item', methods: ['PUT'])]
+    #[Route('/{id}', name: 'api_offre_put_item', methods: ['PUT','PATCH'])]
     public function edit(
         int $id,
         Request $request,
@@ -216,80 +216,64 @@ final class OffreController extends AbstractController
             return $this->errorResponse("Données dans le JSON body invalides.", Response::HTTP_BAD_REQUEST);
         }
 
-        $categorieOffre = (string) ($data["categorie_offre"] ?? null);
-        if ($categorieOffre !== null && $categorieOffre !== '') {
+        $isPut = $request->getMethod() === 'PUT';
+
+        if (array_key_exists('categorie_offre', $data) || $isPut) {
             $categorieOffreError = null;
-            $categorieOffre = $this->parseDomaineActivite($categorieOffre, false, $categorieOffreError);
-            if ($categorieOffre !== null) {
-                $offre->setCategorieOffre($categorieOffre);
-            }
-            else {
+            $categorieOffre = $this->parseDomaineActivite((string) ($data["categorie_offre"] ?? null), true, $categorieOffreError);
+            if ($categorieOffre === null) {
                 return $this->errorResponse($categorieOffreError ?? "Le domaine d'activité de l'offre n'est pas valide.", Response::HTTP_BAD_REQUEST);
             }
+            $offre->setCategorieOffre($categorieOffre);
         }
 
-        $intitule = (string) ($data["intitule"] ?? null);
-        if ($intitule !== null && $intitule !== '') {
+        if (array_key_exists('intitule', $data) || $isPut) {
             $intituleError = null;
-            $intitule = $this->parseIntitule($intitule, false, $intituleError);
-            if ($intitule !== null) {
-                $offre->setIntitule($intitule);
-            }
-            else {
+            $intitule = $this->parseIntitule((string) ($data["intitule"] ?? null), true, $intituleError);
+            if ($intitule === null) {
                 return $this->errorResponse($intituleError ?? "L'intitulé n'est pas valide.", Response::HTTP_BAD_REQUEST);
             }
+            $offre->setIntitule($intitule);
         }
 
-        $description = (string) ($data["description"] ?? null);
-        if ($description !== null && $description !== '') {
+        if (array_key_exists('description', $data) || $isPut) {
             $descriptionError = null;
-            $description = $this->parseDescription($description, false, $descriptionError);
-            if ($description !== null) {
-                $offre->setDescription($description);
-            }
-            else {
+            $description = $this->parseDescription((string) ($data["description"] ?? null), true, $descriptionError);
+            if ($description === null) {
                 return $this->errorResponse($descriptionError ?? "La description n'est pas valide.", Response::HTTP_BAD_REQUEST);
             }
+            $offre->setDescription($description);
         }
 
-        $salaire = (string) ($data["salaire"] ?? null);
-        if ($salaire !== null && $salaire !== '') {
+        if (array_key_exists('salaire', $data) || $isPut) {
             $salaireError = null;
-            $salaire = $this->parseSalaire($salaire, false, $salaireError);
-            if ($salaire !== null) {
-                $offre->setSalaire($salaire);
-            }
-            else {
+            $salaire = $this->parseSalaire((string) ($data["salaire"] ?? null), true, $salaireError);
+            if ($salaire === null) {
                 return $this->errorResponse($salaireError ?? "Le salaire n'est pas valide.", Response::HTTP_BAD_REQUEST);
             }
+            $offre->setSalaire($salaire);
         }
 
-        $niveauEtudes = (string) ($data["niveau_etudes"] ?? null);
-        if ($niveauEtudes !== null && $niveauEtudes !== '') {
+        if (array_key_exists('niveau_etudes', $data) || $isPut) {
             $niveauEtudesError = null;
-            $niveauEtudes = $this->parseNiveauEtudes($niveauEtudes, false, $niveauEtudesError);
-            if ($niveauEtudes !== null) {
-                $offre->setNiveauEtudes($niveauEtudes);
-            }
-            else {
+            $niveauEtudes = $this->parseNiveauEtudes((string) ($data["niveau_etudes"] ?? null), true, $niveauEtudesError);
+            if ($niveauEtudes === null) {
                 return $this->errorResponse($niveauEtudesError ?? "Le niveau d'études n'est pas valide.", Response::HTTP_BAD_REQUEST);
             }
+            $offre->setNiveauEtudes($niveauEtudes);
         }
 
-        $coeffNiveauEtudes = (string) ($data["coeff_niveau_etudes"] ?? null);
-        if ($coeffNiveauEtudes !== null && $coeffNiveauEtudes !== '') {
+        if (array_key_exists('coeff_niveau_etudes', $data) || $isPut) {
             $coeffNiveauEtudesError = null;
-            $coeffNiveauEtudes = $this->parseCoeffNiveauEtudes($coeffNiveauEtudes, false, $coeffNiveauEtudesError);
-            if ($coeffNiveauEtudes !== null) {
-                $offre->setCoeffNiveauEtude($coeffNiveauEtudes);
-            }
-            else {
+            $coeffNiveauEtudes = $this->parseCoeffNiveauEtudes((string) ($data["coeff_niveau_etudes"] ?? null), true, $coeffNiveauEtudesError);
+            if ($coeffNiveauEtudes === null) {
                 return $this->errorResponse($coeffNiveauEtudesError ?? "Le coefficient du niveau d'études n'est pas valide.", Response::HTTP_BAD_REQUEST);
             }
+            $offre->setCoeffNiveauEtude($coeffNiveauEtudes);
         }
 
         // Pour l'update, on vérifie simplement la présence de l'attribut dans la requête
-        if (isset($data["teletravail_possible"])) {
+        if (array_key_exists('teletravail_possible', $data) || $isPut) {
             // Si c'est le cas, on valide de la même façon
             if (!is_bool($data["teletravail_possible"])) {
                 return $this->errorResponse("Le champ teletravail_possible doit être un booléen.", Response::HTTP_BAD_REQUEST);
@@ -299,10 +283,9 @@ final class OffreController extends AbstractController
             $offre->setTeletravailPossible($teletravailPossible);
         }
 
-        $numeroDepartement = (string) ($data["numero_departement"] ?? null);
-        if ($numeroDepartement && $numeroDepartement !== '') {
+        if (array_key_exists('numero_departement', $data) || $isPut) {
             $numeroDepartementError = null;
-            $numeroDepartement = $this->parseNumeroDepartement($numeroDepartement, true, $numeroDepartementError);
+            $numeroDepartement = $this->parseNumeroDepartement((string) ($data["numero_departement"] ?? null), true, $numeroDepartementError);
             if ($numeroDepartement === null) {
                 return $this->errorResponse($numeroDepartementError ?? "Le N° de département n'est pas valide.", Response::HTTP_BAD_REQUEST);
             }
@@ -313,15 +296,37 @@ final class OffreController extends AbstractController
             $offre->setDepartement($departement);
         }
 
-        $coeffdepartement = (string) ($data["coeff_departement"] ?? null);
-        if ($coeffdepartement !== null && $coeffdepartement !== '') {
+        if (array_key_exists('coeff_departement', $data) || $isPut) {
             $coeffdepartementError = null;
-            $coeffdepartement = $this->parseCoeffDepartement($coeffdepartement, false, $coeffdepartementError);
-            if ($coeffdepartement !== null) {
-                $offre->setCoeffDepartement($coeffdepartement);
-            }
-            else {
+            $coeffdepartement = $this->parseCoeffDepartement((string) ($data["coeff_departement"] ?? null), true, $coeffdepartementError);
+            if ($coeffdepartement === null) {
                 return $this->errorResponse($coeffdepartementError ?? "Le coefficient du département n'est pas valide.", Response::HTTP_BAD_REQUEST);
+            }
+            $offre->setCoeffDepartement($coeffdepartement);
+        }
+
+        // Gestion de la sélection des compétences
+        if (array_key_exists('selection_competences', $data) || $isPut) {
+            $selectionCompetencesError = null;
+            $selectionCompetences = $this->parseSelectionCompetences((array) ($data["selection_competences"] ?? null), true, $selectionCompetencesError);
+            if ($selectionCompetences === null) {
+                return $this->errorResponse($selectionCompetencesError ?? "La sélection des compétences n'est pas valide.", Response::HTTP_BAD_REQUEST);
+            }
+
+            // Suppression de toutes les sélections de compétence
+            $offre->getSelectionCompetences()->clear();
+            $entityManager->flush();
+
+            $selectionCompetencesError = null;
+            $this->ajouterSelectionCompetences(
+                $offre,
+                $selectionCompetences,
+                $competenceRepository,
+                $entityManager,
+                $selectionCompetencesError
+            );
+            if ($selectionCompetencesError !== null) {
+                return $this->errorResponse($selectionCompetencesError, Response::HTTP_BAD_REQUEST);
             }
         }
 
@@ -360,18 +365,15 @@ final class OffreController extends AbstractController
             $offre->setNombreDeVues($nombreDeVues + 1);
         }
 
-        $statutOffre = (string) ($data["statut_offre"] ?? null);
-        if ($statutOffre !== null && $statutOffre !== '') {
+        // La mise à jour du statut de l'offre ne peut se faire qu'en PATCH
+        if (array_key_exists('statut_offre', $data) && !$isPut) {
             $statutError = null;
-            $statutOffre = $this->parseStatutOffre($statutOffre, false, $statutError);
-            if ($statutOffre !== null) {
-                $offre->setStatutOffre($statutOffre);
-            }
-            else {
+            $statutOffre = $this->parseStatutOffre((string) ($data["statut_offre"] ?? null), true, $statutError);
+            if ($statutOffre === null) {
                 return $this->errorResponse($statutError ?? "Le statut de l'offre n'est pas valide.", Response::HTTP_BAD_REQUEST);
             }
+            $offre->setStatutOffre($statutOffre);
         }
-
 
         $entityManager->flush();
 

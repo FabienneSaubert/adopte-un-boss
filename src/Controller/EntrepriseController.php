@@ -154,8 +154,8 @@ final class EntrepriseController extends AbstractController
     }
 
     // Pour toute requête envoyée sur la route /api/entreprise/{id}, nommée "api_entreprise_put_item",
-    // avec la méthode "PUT", la méthode publique edit() du contrôleur est exécutée.
-    #[Route('/{id}', name: 'api_entreprise_put_item', methods: ['PUT'])]
+    // avec la méthode "PUT" ou "PATCH", la méthode publique edit() du contrôleur est exécutée.
+    #[Route('/{id}', name: 'api_entreprise_put_item', methods: ['PUT','PATCH'])]
     /**
      * Permet de mettre à jour les informations d'un entreprise
      * @param int $id ID du entreprise à mettre à jour
@@ -187,73 +187,70 @@ final class EntrepriseController extends AbstractController
         if ($data === null) {
             return $this->errorResponse("Données dans le JSON body invalides.", Response::HTTP_BAD_REQUEST);
         }
-        // On récupère le nom depuis le JSON la requête (null si non défini)
-        $nom = (string) ($data["nom"] ?? null);
 
-        // Si le nom a été défini dans la requête du client
-        if ($nom !== null && $nom !== '') {
+        // On sauvegarde dans une variable un booléen qui nous permet de savoir si la méthode de la
+        // requête HTTP envoyée par le client est PUT. Si ce n'est pas le cas, c'est que la requête est
+        // forcément PATCH. Contrairement à PUT, PATCH accepte de recevoir que les champs à modifier.
+        $isPut = $request->getMethod() === 'PUT';
+
+        // Si le nom a été défini dans la requête du client, ou que la requête est de type PUT
+        if (array_key_exists('nom_entreprise', $data) || $isPut) {
             // On prépare le message pour une éventuelle erreur de nom
             // (qui sera remplie plus tard par le parser pour faire de la gestion d'erreur).
             $nomError = null;
     
             // On utilise notre paseur de la même façon afin de valider la donnée
-            $nom = $entrepriseInputParser->parseNom($nom, false, $nomError);
+            // On récupère le nom depuis le JSON la requête (null si non défini)
+            $nom = $entrepriseInputParser->parseNom((string) ($data["nom_entreprise"] ?? null), true, $nomError);
     
-            // Si le nom a été correctement validé
-            if ($nom !== null) {
-                // On peut utiliser le setter spécifique afin de mettre à jour la donnée
-                $entreprise->setNom($nom);
-            }
-            else {
-                // Si le client a voulu mettre à jour une valeur, mais qu'elle n'est pas validée, on renvoi une erreur
+            // Si le nom n'a pas été correctement validé
+            if ($nom === null) {
+                // On renvoi une erreur venant du parsing, ou une erreur par défaut, de la même façon que lors de la création
                 return $this->errorResponse($nomError ?? "Le nom n'est pas valide.", Response::HTTP_BAD_REQUEST);
             }
+
+            // Si la valeur a été validée, on peut utiliser le setter spécifique afin de mettre à jour la donnée
+            $entreprise->setNom($nom);
         }
 
-        // On récupère le N° de SIRET depuis le JSON la requête (null si non défini)
-        $siret = (string) ($data["siret"] ?? null);
-
-        // Si le N° de SIRET a été défini dans la requête du client
-        if ($siret !== null && $siret !== '') {
+        // Si le N° de SIRET a été défini dans la requête du client, ou que la requête est de type PUT
+        if (array_key_exists('siret_entreprise', $data) || $isPut) {
             // On prépare le message pour une éventuelle erreur de N° de SIRET
             // (qui sera remplie plus tard par le parser pour faire de la gestion d'erreur).
             $siretError = null;
     
             // On utilise notre paseur de la même façon afin de valider la donnée
-            $siret = $entrepriseInputParser->parseSiret($siret, false, $siretError);
+            // On récupère le N° de SIRET depuis le JSON la requête (null si non défini)
+            $siret = $entrepriseInputParser->parseSiret((string) ($data["siret_entreprise"] ?? null), true, $siretError);
     
-            // Si le N° de SIRET a été correctement validé
-            if ($siret !== null) {
-                // On peut utiliser le setter spécifique afin de mettre à jour la donnée
-                $entreprise->setSiret($siret);
-            }
-            else {
-                // Si le client a voulu mettre à jour une valeur, mais qu'elle n'est pas validée, on renvoi une erreur
+            // Si le N° de SIRET n'a pas été correctement validé
+            if ($siret === null) {
+                // On renvoi une erreur venant du parsing, ou une erreur par défaut, de la même façon que lors de la création
                 return $this->errorResponse($siretError ?? "Le N° de SIRET n'est pas valide.", Response::HTTP_BAD_REQUEST);
             }
+
+            // Si la valeur a été validée, on peut utiliser le setter spécifique afin de mettre à jour la donnée
+            $entreprise->setSiret($siret);
         }
 
-        // On récupère l'adresse depuis le JSON la requête (null si non défini)
-        $adresse = (string) ($data["adresse"] ?? null);
-
-        // Si l'adresse a été défini dans la requête du client
-        if ($adresse !== null && $adresse !== '') {
+        // Si l'adresse a été défini dans la requête du client, ou que la requête est de type PUT
+        if (array_key_exists('adresse_entreprise', $data) || $isPut) {
             // On prépare le message pour une éventuelle erreur d'adresse
             // (qui sera remplie plus tard par le parser pour faire de la gestion d'erreur).
             $adresseError = null;
     
             // On utilise notre paseur de la même façon afin de valider la donnée
-            $adresse = $entrepriseInputParser->parseAdresse($adresse, false, $adresseError);
+            // On récupère l'adresse depuis le JSON la requête (null si non défini)
+            $adresse = $entrepriseInputParser->parseAdresse((string) ($data["adresse_entreprise"] ?? null), true, $adresseError);
     
-            // Si l'adresse a été correctement validé
-            if ($adresse !== null) {
-                // On peut utiliser le setter spécifique afin de mettre à jour la donnée
-                $entreprise->setAdresse($adresse);
-            }
-            else {
-                // Si le client a voulu mettre à jour une valeur, mais qu'elle n'est pas validée, on renvoi une erreur
+            // Si l'adresse n'a pas été correctement validée
+            if ($adresse === null) {
+                // On renvoi une erreur venant du parsing, ou une erreur par défaut, de la même façon que lors de la création
                 return $this->errorResponse($adresseError ?? "L'adresse n'est pas valide.", Response::HTTP_BAD_REQUEST);
             }
+
+            // On peut utiliser le setter spécifique afin de mettre à jour la donnée
+            $entreprise->setAdresse($adresse);
         }
 
         // Doctrine va générer la requête SQL UPDATE automatiquement lors du flush().
@@ -306,11 +303,11 @@ final class EntrepriseController extends AbstractController
             // On renvoie l'id
             "id" => $entreprise->getId(),
             // Le nom
-            "nom" => $entreprise->getNom(),
+            "nom_entreprise" => $entreprise->getNom(),
             // Le N° de SIRET
-            "siret" => $entreprise->getSiret(),
+            "siret_entreprise" => $entreprise->getSiret(),
             // L'adresse
-            "adresse" => $entreprise->getAdresse(),
+            "adresse_entreprise" => $entreprise->getAdresse(),
         ];
     }
 
