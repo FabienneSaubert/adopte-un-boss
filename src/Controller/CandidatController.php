@@ -329,7 +329,19 @@ final class CandidatController extends AbstractController
         // preg_replace = tous les caractères qui ne sont pas lettre, chiffre, point, underscore ou tiret
         // sont remplacés par un underscore
         // getClientOriginalName = méthode de la classe "UploadedFile"
-        $newFilename = uniqid() . '_' . preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
+        $originalName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
+
+        // Gestion de la contrainte varchar(255) de la BDD
+        $extension = pathinfo($originalName, PATHINFO_EXTENSION);
+        $nomFichierSansExtension = pathinfo($originalName, PATHINFO_FILENAME);
+
+        $uniquePrefix = uniqid() . '_';
+
+        $maxLength = 255 - strlen($uniquePrefix) - strlen($extension) - 1; // -1 car le point n'est pas pas encore inclus
+
+        $nomFichierSansExtension = substr($nomFichierSansExtension, 0, $maxLength);
+
+        $newFilename = $uniquePrefix . $nomFichierSansExtension . '.' . $extension;
 
         try {
             // Supprimer l'ancien fichier si existe
@@ -369,7 +381,7 @@ final class CandidatController extends AbstractController
 
     // Télécharger CV
     #[Route('/{id}/download-cv', name: 'api_candidat_download_cv', methods: ['GET'])]
-    public function downloadCv(int $id, EntityManagerInterface $entityManager,  CandidatRepository $candidatRepository): Response
+    public function downloadCv(int $id, CandidatRepository $candidatRepository): Response
     {
         // selection du candidat par id
         $candidat = $candidatRepository->find($id);
@@ -381,7 +393,7 @@ final class CandidatController extends AbstractController
 
         $uuid = $candidat->getUuid(); // On récupère l'uuid du candidat
         // chemin vers le fichier physique concaténé avec le nom du fichier .
-        $filePath = $this->getParameter('kernel.project_dir') . '/var/storage/cv/' . $uuid .'/'. $candidat->getCvFilename();
+        $filePath = $this->getParameter('kernel.project_dir') . '/var/storage/cv/' . $uuid . '/' . $candidat->getCvFilename();
 
         // Vérif : Si le fichier n'existe
         if (!file_exists($filePath)) {
