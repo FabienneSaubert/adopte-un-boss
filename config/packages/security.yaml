@@ -52,10 +52,17 @@ security:
 
         # Gère toutes les autres routes API
         api:
-            # S'applique à toutes les routes commençants par /api/login
+            # S'applique à toutes les routes commençants par /api
             pattern: ^/api
+
             # Aucune session
             stateless: true
+            
+            # Point d'entrée à utiliser par défaut car il existe plusieurs points d'entrée définis dans le firewall.
+            # On utilise le point d'entrée jwt afin qu'il y est vérification du token d'accès pour toutes les autres
+            # routes qui ne concernent pas le refresh du token.
+            entry_point: jwt
+            
             # Provider permettant la création automatique de l'instance utilisateur pour chaque route dans ce firewall.
             # Cela va permettre dans les contrôleurs de récupérer les données utilisateur en base de données via le getter getUser()
             provider: app_user_provider
@@ -67,6 +74,11 @@ security:
             # - la validité du token
             jwt: ~
 
+            # Active le refresh du token par JWTRefreshTokenBundle
+            refresh_jwt:
+                # Sur le chemin /api/token/refresh uniquement, le refresh du token va se lancer
+                check_path: /api/token/refresh
+
     # Définit qui peut accéder à quoi.
     # IMPORTANT : seule la première règle correspondante est appliquée.
     access_control:
@@ -74,8 +86,8 @@ security:
         - { path: ^/api/candidat, methods: [POST], roles: PUBLIC_ACCESS }
         - { path: ^/api/recruteur, methods: [POST], roles: PUBLIC_ACCESS }
 
-        # Route de connexion accessible publiquement
-        - { path: ^/api/login, roles: PUBLIC_ACCESS }
+        # Route de connexion et de renouvellement de token accessible publiquement
+        - { path: ^/api/(login|token/refresh), methods: [POST], roles: PUBLIC_ACCESS }
 
         # Lecture publique des offres
         - { path: ^/api/offre, methods: [GET], roles: PUBLIC_ACCESS }
