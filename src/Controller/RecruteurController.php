@@ -229,6 +229,7 @@ final class RecruteurController extends AbstractController
             "email_pro" => $recruteur->getEmailPro(),
             "telephone_pro" => $recruteur->getTelephonePro(),
             "utilisateur" => [
+                "utilisateur_id" => $recruteur->getUtilisateur()?->getId(),
                 "nom" => $recruteur->getUtilisateur()->getNom(),
                 "prenom" => $recruteur->getUtilisateur()->getPrenom(),
                 "date_de_naissance" => $recruteur->getUtilisateur()->getDateDeNaissance(),
@@ -236,6 +237,7 @@ final class RecruteurController extends AbstractController
                 "telephone" => $recruteur->getUtilisateur()->getTelephone(),
             ],
             "entreprise" => [
+                "entreprise_id"  => $recruteur->getEntreprise()?->getId(),
                 "nom" => $recruteur->getEntreprise()->getNom(),
                 "siret" => $recruteur->getEntreprise()->getSiret(),
                 "adresse" => $recruteur->getEntreprise()->getAdresse(),
