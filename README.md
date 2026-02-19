@@ -234,10 +234,18 @@ php bin/console doctrine:migrations:migrate
 
 ---
 
-### 6️⃣ Créer la paire de clés permettant de signer les token JWT
+### 6️⃣ Gestion des tokens JWT pour l'authentification
+
+Créer la paire de clés permettant de signer les token JWT :
 
 ```bash
 php bin/console lexik:jwt:generate-keypair --overwrite
+```
+
+Nettoyage de la table (à faire régulièrement ou à mettre en tant que tâche CRON) :
+
+```bash
+php bin/console gesdinet:jwt:clear
 ```
 
 ---
