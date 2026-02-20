@@ -9,3 +9,8 @@
 /vendor/
 ###< symfony/framework-bundle ###
 /config/reference.php
+
+###> phpunit/phpunit ###
+/phpunit.xml
+/.phpunit.cache/
+###< phpunit/phpunit ###
