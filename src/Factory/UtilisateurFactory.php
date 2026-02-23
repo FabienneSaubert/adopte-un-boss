@@ -35,7 +35,8 @@ class UtilisateurFactory
                 ->setProfilVisible($data["profil_visible"])
                 ->setInfosVisibles($data["infos_visibles"])
                 ->setUuid($data["uuid"])
-                ->setCv($data["cv"])
+                ->setAccroche($data["accroche"])
+                ->setCvFilename($data["cvFilename"])
                 ->setNiveauEtude($data["niveau_etude"])
                 ->setUtilisateur($utilisateur),
             'Recruteur' => (new Recruteur())

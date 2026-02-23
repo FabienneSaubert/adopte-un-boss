@@ -62,6 +62,9 @@ final class CandidatController extends AbstractController
         // Texte d'accroche optionnelle
         $data['accroche'] = null;
 
+        // cvFilename = null à la création du candidat
+        $data['cvFilename'] = null;
+
         // Génération de l'UUID (package Symfony)
         $data['uuid'] = Uuid::v4()->toRfc4122();
 
@@ -184,10 +187,10 @@ final class CandidatController extends AbstractController
             // Validation de l'enum NiveauEtude
             // TryFrom = méthode pour énum, permet de comparerl'entrée avec les valaeurs présentes dans 
             // l'enum niveau_etude. Si match -> retourne une instance, sinon retourne null;
-            //! TryFrom = renvoi null si la valeur n'est pas dans l'enum, le script continue, on gère le null 
-            //! en créant une réponse adaptée "si niveauEtude est null"... 
-            //! J'aurais pu utiliser from à la place mais ce n'est pas recommandé car en cas 
-            //! d'erreur, from stoppe le script (et donc l'application).
+            // TryFrom = renvoi null si la valeur n'est pas dans l'enum, le script continue, on gère le null 
+            // en créant une réponse adaptée "si niveauEtude est null"... 
+            // J'aurais pu utiliser from à la place mais ce n'est pas recommandé car en cas 
+            // d'erreur, from stoppe le script (et donc l'application).
             // Ici, je compare la valeur de la requête à la valeur "niveau_etude" avec les enum possible
             // On s'assure que l'entrée utilisateur soit bonne et non null.
             $niveauEtude = NiveauEtude::tryFrom($data['niveau_etude']);
