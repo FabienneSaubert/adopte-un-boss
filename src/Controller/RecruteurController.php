@@ -10,7 +10,9 @@ use App\Parser\UtilisateurInputParser;
 use App\Repository\EntrepriseRepository;
 use App\Repository\RecruteurRepository;
 use App\Repository\UtilisateurRepository;
+use App\ValueObject\EmailPro;
 use Doctrine\ORM\EntityManagerInterface;
+use InvalidArgumentException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -67,18 +69,20 @@ final class RecruteurController extends AbstractController
         }
         $data["poste"] = $poste;
 
-        $emailPro = (string) ($data["email_pro"] ?? null);
-        if ($emailPro !== null && $emailPro !== '') {
-            $emailProError = null;
-            $emailPro = $this->parseEmailPro($emailPro, false, $emailProError);
-            if ($emailPro === null) {
-                return $this->errorResponse($emailProError ?? "L'email professionnel n'est pas valide.", Response::HTTP_BAD_REQUEST);
-            }
+        // En utilisant la classe EmailPro afin de créer une instanciation valide d'un email professionnel,
+        // on s'attend à ce que la validation ne soit potentiellement pas passée. On utilise donc un bloc
+        // de type try catch afin de renvoyer une erreur JSON en cas d'exception lors de la création d'un EmailPro.
+        try {
+            // On créer donc un email pro valide avec la classe Email pro
+            $emailPro = EmailPro::fromString($data['email_pro'] ?? null);
+            // Puis on inscrit dans $data la valeur validée par les validations de la classe
+            $data['email_pro'] = $emailPro?->asString();
         }
-        else {
-            $emailPro = null;
+        // Si une exception a été levée lors de la validation, et qu'elle est de type InvalidArgumentException
+        catch (InvalidArgumentException $e) {
+            // On renvoit de la même façon l'erreur JSON, en se servant de la classe de l'exception
+            return $this->errorResponse($e->getMessage(), Response::HTTP_BAD_REQUEST);
         }
-        $data["email_pro"] = $emailPro;
 
         $emailProExistant = $recruteurRepository->findOneBy(['email_pro' => $data["email_pro"]]);
         if ($emailProExistant) {
@@ -182,13 +186,20 @@ final class RecruteurController extends AbstractController
             $recruteur->setPoste($poste);
         }
 
+        // Pour la validation de l'email professionnel
         if (array_key_exists('email_pro', $data) || $isPut) {
-            $emailProError = null;
-            $emailPro = $this->parseEmailPro((string) ($data["email_pro"] ?? null), true, $emailProError);
-            if ($emailPro === null) {
-                return $this->errorResponse($emailProError ?? "L'email professionnel n'est pas valide.", Response::HTTP_BAD_REQUEST);
+            // On utilise le même type de validation que lors de la création
+            try {
+                // On créé la valeur valide de l'email via la classe
+                $emailPro = EmailPro::fromString($data['email_pro'] ?? null);
+                // Puis on met à jour l'email pro du recruteur
+                $recruteur->setEmailPro($emailPro?->asString());
             }
-            $recruteur->setEmailPro($emailPro);
+            // Si une exception a été levée lors de la validation, et qu'elle est de type InvalidArgumentException
+            catch (InvalidArgumentException $e) {
+                // On peut la traiter exactement de la même manière
+                return $this->errorResponse($e->getMessage(), Response::HTTP_BAD_REQUEST);
+            }
         }
 
         if (array_key_exists('telephone_pro', $data) || $isPut) {
