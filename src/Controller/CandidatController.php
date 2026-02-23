@@ -9,6 +9,7 @@ use App\Enum\NiveauEtude;
 use App\Factory\UtilisateurFactory;
 use App\Parser\UtilisateurInputParser;
 use App\Repository\CandidatRepository;
+use App\Repository\UtilisateurRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -37,6 +38,7 @@ final class CandidatController extends AbstractController
     public function new(
         Request $request,
         UtilisateurInputParser $utilisateurInputParser,
+        UtilisateurRepository $utilisateurRepository,
         EntityManagerInterface $entityManager,
         UtilisateurFactory $utilisateurFactory
     ): JsonResponse {
@@ -52,6 +54,11 @@ final class CandidatController extends AbstractController
         $errorMessage = $utilisateurInputParser->validate($data);
         if ($errorMessage !== null) {
             return $this->errorResponse($errorMessage, Response::HTTP_BAD_REQUEST);
+        }
+
+        $emailExistant = $utilisateurRepository->findOneBy(['email' => $data["email"]]);
+        if ($emailExistant) {
+            return $this->errorResponse("Un utilisateur avec la même adresse mail existe déjà. Veuillez vous connectez ou créer un compte avec une nouvelle adresse.", Response::HTTP_BAD_REQUEST);
         }
 
         // Valeurs par défaut

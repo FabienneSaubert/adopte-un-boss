@@ -9,6 +9,7 @@ use App\Parser\EntrepriseInputParser;
 use App\Parser\UtilisateurInputParser;
 use App\Repository\EntrepriseRepository;
 use App\Repository\RecruteurRepository;
+use App\Repository\UtilisateurRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -34,6 +35,8 @@ final class RecruteurController extends AbstractController
     public function new(
         Request $request,
         UtilisateurInputParser $utilisateurInputParser,
+        UtilisateurRepository $utilisateurRepository,
+        RecruteurRepository $recruteurRepository,
         EntrepriseInputParser $entrepriseInputParser,
         UtilisateurFactory $utilisateurFactory,
         EntrepriseFactory $entrepriseFactory,
@@ -50,6 +53,11 @@ final class RecruteurController extends AbstractController
         $errorMessage = $utilisateurInputParser->validate($data);
         if ($errorMessage !== null) {
             return $this->errorResponse($errorMessage, Response::HTTP_BAD_REQUEST);
+        }
+
+        $emailExistant = $utilisateurRepository->findOneBy(['email' => $data["email"]]);
+        if ($emailExistant) {
+            return $this->errorResponse("Un utilisateur avec la même adresse mail existe déjà. Veuillez vous connectez ou créer un compte avec une nouvelle adresse.", Response::HTTP_BAD_REQUEST);
         }
 
         $posteError = null;
@@ -71,6 +79,11 @@ final class RecruteurController extends AbstractController
             $emailPro = null;
         }
         $data["email_pro"] = $emailPro;
+
+        $emailProExistant = $recruteurRepository->findOneBy(['email_pro' => $data["email_pro"]]);
+        if ($emailProExistant) {
+            return $this->errorResponse("Un utilisateur avec la même adresse mail professionnelle existe déjà.", Response::HTTP_BAD_REQUEST);
+        }
 
         $telephonePro = (string) ($data["telephone_pro"] ?? null);
         if ($telephonePro !== null && $telephonePro !== '') {
@@ -144,7 +157,7 @@ final class RecruteurController extends AbstractController
         return $this->json($this->serializeRecruteur($recruteur));
     }
 
-    #[Route('/{id}', name: 'api_recruteur_put_item', methods: ['PUT'])]
+    #[Route('/{id}', name: 'api_recruteur_put_item', methods: ['PUT','PATCH'])]
     public function edit(int $id, Request $request, RecruteurRepository $recruteurRepository, EntityManagerInterface $entityManager): JsonResponse
     {
         $recruteur = $recruteurRepository->find($id);
@@ -158,40 +171,33 @@ final class RecruteurController extends AbstractController
             return $this->errorResponse("Données dans le JSON body invalides.", Response::HTTP_BAD_REQUEST);
         }
 
-        $poste = (string) ($data["poste"] ?? null);
-        if ($poste !== null && $poste !== '') {
+        $isPut = $request->getMethod() === 'PUT';
+
+        if (array_key_exists('poste', $data) || $isPut) {
             $posteError = null;
-            $poste = $this->parsePoste($poste, false, $posteError);
-            if ($poste !== null) {
-                $recruteur->setPoste($poste);
-            }
-            else {
+            $poste = $this->parsePoste((string) ($data["poste"] ?? null), true, $posteError);
+            if ($poste === null) {
                 return $this->errorResponse($posteError ?? "Le poste n'est pas valide.", Response::HTTP_BAD_REQUEST);
             }
+            $recruteur->setPoste($poste);
         }
 
-        $emailPro = (string) ($data["email_pro"] ?? null);
-        if ($emailPro !== null && $emailPro !== '') {
+        if (array_key_exists('email_pro', $data) || $isPut) {
             $emailProError = null;
-            $emailPro = $this->parseEmailPro($emailPro, false, $emailProError);
-            if ($emailPro !== null) {
-                $recruteur->setEmailPro($emailPro);
-            }
-            else {
+            $emailPro = $this->parseEmailPro((string) ($data["email_pro"] ?? null), true, $emailProError);
+            if ($emailPro === null) {
                 return $this->errorResponse($emailProError ?? "L'email professionnel n'est pas valide.", Response::HTTP_BAD_REQUEST);
             }
+            $recruteur->setEmailPro($emailPro);
         }
 
-        $telephonePro = (string) ($data["telephone_pro"] ?? null);
-        if ($telephonePro !== null && $telephonePro !== '') {
+        if (array_key_exists('telephone_pro', $data) || $isPut) {
             $telephoneProError = null;
-            $telephonePro = $this->parseTelephonePro($telephonePro, false, $telephoneProError);
-            if ($telephonePro !== null) {
-                $recruteur->setTelephonePro($telephonePro);
-            }
-            else {
+            $telephonePro = $this->parseTelephonePro((string) ($data["telephone_pro"] ?? null), true, $telephoneProError);
+            if ($telephonePro === null) {
                 return $this->errorResponse($telephoneProError ?? "Le téléphone professionnel n'est pas valide.", Response::HTTP_BAD_REQUEST);
             }
+            $recruteur->setTelephonePro($telephonePro);
         }
 
         $entityManager->flush();
