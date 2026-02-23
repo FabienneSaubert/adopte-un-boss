@@ -9,8 +9,6 @@
 /vendor/
 ###< symfony/framework-bundle ###
 /config/reference.php
-/public/uploads/
-
 
 ###> lexik/jwt-authentication-bundle ###
 /config/jwt/*.pem
