@@ -1,0 +1,23 @@
+lexik_jwt_authentication:
+
+    # Emplacement de la clé privée, défini dans l'env
+    # Le plus souvent stockée dans /config/jwt
+    # C'est elle qui signe les données d'un utilisateur, ce qui créé le token d'accès.
+    secret_key: '%env(resolve:JWT_SECRET_KEY)%'
+
+    # Emplacement de la clé publique, défini dans l'env
+    # Le plus souvent stockée dans /config/jwt
+    # C'est elle qui permet de vérifier si un token d'accès a été créé avec la bonne clé privée,
+    # ce qui permet d'authentifier que c'est bien un token provenant du serveur et pas un créé par l'utilisateur.
+    public_key: '%env(resolve:JWT_PUBLIC_KEY)%'
+
+    # Passphrase, défini dans l'env
+    # Permet de chiffrer le fichier de clé privée au repos (sur disque).
+    # Protège contre une fuite du fichier private.pem seul (ex: backup),
+    # mais si un attaquant obtient aussi le passphrase (env/secret), la protection disparaît.
+    pass_phrase: '%env(JWT_PASSPHRASE)%'
+    
+    # Durée de vie du token d'accès
+    # Son but est d'avoir une durée courte afin de limiter les dégâts lors d'un vol de token.
+    # Défini le plus souvent selon l'usage métier, dans notre cas à 900 secondes (15 minutes)
+    token_ttl: 900
