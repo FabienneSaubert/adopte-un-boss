@@ -1,7 +1,7 @@
 <?php
 
 use PHPUnit\Framework\TestCase;
-use App\Service\CvFilenameGenerator;
+use App\ValueObject\CvFilenameGenerator;
 
 class CvFilenameGeneratorTest extends TestCase
 {
