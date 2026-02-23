@@ -8,8 +8,12 @@ use App\Repository\UtilisateurRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
+// Interfaces à ajouter pour que l'entité puisse assurer l'authentification via lexik
+use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
+use Symfony\Component\Security\Core\User\UserInterface;
+
 #[ORM\Entity(repositoryClass: UtilisateurRepository::class)]
-class Utilisateur
+class Utilisateur implements UserInterface, PasswordAuthenticatedUserInterface
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -179,5 +183,36 @@ class Utilisateur
         $this->recruteur = $recruteur;
 
         return $this;
+    }
+
+
+    /* ----- Méthodes obligatoires à implémenter pour l'authentification via lexik */
+
+    // Getter permettant d'obtenir l'identifiant demandé par lexik
+    public function getUserIdentifier(): string
+    {
+        // Dans notre cas, il s'agit de l'email
+        return $this->email;
+    }
+
+    // Getter permettant d'obtenir le rôle utilisateur
+    public function getRoles(): array
+    {
+        // Dans notre cas, les rôles définis en base de données ne sont pas compatibles avec des rôles Symfony,
+        // on renvoi alors par défaut le rôle utilisateur de Symfony seul
+        return ['ROLE_USER'];
+    }
+
+    // Getter permettant d'obtenir le hash du password demandé par lexik
+    public function getPassword(): ?string
+    {
+        // Le getter renvoi donc la même valeur que notre getter déjà implémenté getMdpHash()
+        return $this->mdp_hash;
+    }
+
+    // Méthode permettant d'effacer de la mémoire du serveur les identifiants après l'authentification
+    public function eraseCredentials(): void
+    {
+        // Comme dans notre cas les identifiants ne sont pas stockés en mémoire, on peut laisser la méthode vide
     }
 }
