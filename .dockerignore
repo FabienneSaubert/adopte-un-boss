@@ -23,7 +23,7 @@
 **/docker-compose*
 **/compose.y*ml
 !**/composer.json
-!**/composer.lock
+
 **/Dockerfile*
 **/node_modules
 **/npm-debug.log

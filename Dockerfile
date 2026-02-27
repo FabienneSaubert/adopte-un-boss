@@ -1,38 +1,25 @@
-################################################################################
-# Stage 1 : installer les dépendances avec Composer
-FROM composer:lts AS deps
+FROM php:8.4-fpm
 
-WORKDIR /app
+RUN apt-get update && apt-get install -y \
+        git \
+        unzip \
+        libicu-dev \
+        libonig-dev \
+        libzip-dev \
+        zip \
+        curl \
+    && docker-php-ext-install intl pdo pdo_mysql zip \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copier uniquement composer.json et composer.lock pour utiliser le cache
-COPY composer.json composer.lock /app/
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Installer les dépendances sans dev
-RUN composer install --no-dev --no-interaction --no-scripts
+WORKDIR /var/www
 
-################################################################################
-# Stage 2 : image finale PHP + Apache
-FROM php:8.2-apache
+COPY . .
 
-WORKDIR /var/www/html
+RUN php -d memory_limit=-1 /usr/bin/composer install --no-interaction --optimize-autoloader --no-scripts
 
-# Installer pdo_mysql pour Symfony
-RUN docker-php-ext-install pdo_mysql
+EXPOSE 8000
 
-# Copier les dépendances depuis le stage Composer
-COPY --from=deps /app/vendor/ ./vendor
-
-# Copier le code source
-COPY . /var/www/html
-
-# Donner les droits à www-data
-RUN chown -R www-data:www-data /var/www/html
-
-# Activer le module Apache rewrite
-RUN a2enmod rewrite
-
-# Exposer le port Apache
-EXPOSE 9000
-
-# Lancer Apache au premier plan
-CMD ["apache2-foreground"]
+CMD ["php", "-S", "0.0.0.0:8000", "-t", "public"]
