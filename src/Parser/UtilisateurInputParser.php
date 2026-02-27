@@ -156,7 +156,7 @@ class UtilisateurInputParser
         }
 
         // Retrait des espaces
-        $value = str_replace(' ','',$value);
+        $value = str_replace(' ', '', $value);
 
         $telephoneRegex = '/^(?:\+33|0)[67]\d{8}$/';
         // Regex numéro de téléphone français
@@ -255,7 +255,7 @@ class UtilisateurInputParser
             // Arrête la fonction → téléphone invalide
         }
 
-        $mdpRegex = '/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).+$/';
+        $mdpRegex = '/^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[^a-zA-Z0-9]).+$/';
         // Regex de sécurité du mot de passe
         //              Vérifie que le mot de passe contient :  - au moins une minuscule
         //                                                      - au moins une majuscule
