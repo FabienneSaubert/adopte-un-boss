@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Entity\Candidat;
 use App\Entity\Offre;
 use App\Entity\SelectionCompetence;
 use App\Enum\DomaineActivite;
@@ -11,6 +12,7 @@ use App\Repository\CompetenceRepository;
 use App\Repository\DepartementRepository;
 use App\Repository\OffreRepository;
 use App\Repository\RecruteurRepository;
+use App\Service\MatchingService;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -23,14 +25,28 @@ use Symfony\Component\Routing\Attribute\Route;
 final class OffreController extends AbstractController
 {
     #[Route(name: 'api_offre_get_collection', methods: ['GET'])]
-    public function index(OffreRepository $offreRepository): JsonResponse
+    public function index(OffreRepository $offreRepository, MatchingService $matchingService): JsonResponse
     {
-        $offre = array_map(
+        // Recupération des offres
+        $offres = $offreRepository->findAll();
+        
+        // Recupération de l'instance du candidat via l'access token envoyé par le client
+        $candidat = $this->getCandidatConnecte();
+
+        // Si Lekiq a réussi à déterminer un candidat
+        if ($candidat) {
+            // C'est qu'il lui faut les offres triées avec le système de matching
+            $matchingService->match($candidat,$offres);
+        }
+
+        // Sérialization des offres
+        $offresSerializees = array_map(
             fn(Offre $offre) => $this->serializeOffre($offre),
-            $offreRepository->findAll()
+            $offres
         );
 
-        return $this->json($offre);
+        // Renvoi des offres serializées, et matchées si candidat connecté
+        return $this->json($offresSerializees);
     }
 
     #[Route(name: 'api_offre_post_item', methods: ['POST'])]
@@ -758,5 +774,11 @@ final class OffreController extends AbstractController
     private function errorResponse(string $message, int $status): JsonResponse
     {
         return $this->json(['error' => $message], $status);
+    }
+
+    private function getCandidatConnecte(): ?Candidat
+    {
+        $user = $this->getUser();
+        return $user instanceof \App\Entity\Utilisateur ? $user->getCandidat() : null;
     }
 }
