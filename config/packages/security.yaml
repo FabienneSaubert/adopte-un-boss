@@ -85,21 +85,21 @@ security:
         - { path: ^/api/recruteur, methods: [POST], roles: PUBLIC_ACCESS }
 
         # Route de connexion et de renouvellement de token accessible publiquement
-        - {
-              path: ^/api/(login|token/refresh),
-              methods: [POST],
-              roles: PUBLIC_ACCESS,
-          }
+        - { path: ^/api/(login|token/refresh), methods: [POST], roles: PUBLIC_ACCESS }
 
         # Lecture publique des offres
         - { path: ^/api/offre, methods: [GET], roles: PUBLIC_ACCESS }
+
+        # Demande de contact publique
         - { path: ^/api/demandecontact, methods: [POST], roles: PUBLIC_ACCESS }
-        - {
-              path: ^/api/utilisateur/reset-password$,
-              methods: [POST],
-              roles: PUBLIC_ACCESS,
-          }
+
+        # Réiniatilisation de mot de passe - envoi de l'email
+        # Envoi via l'URL de l'API : /reset-password
+        - { path: ^/api/utilisateur/reset-password$, methods: [POST], roles: PUBLIC_ACCESS }
+        # Réiniatilisation de mot de passe - envoi du nouveau mot de passe
+        # Envoi via l'URL de l'API : /reset-password?token=...
         - { path: ^/api/utilisateur/reset-password, roles: PUBLIC_ACCESS }
+        
         # Toutes les autres routes /api nécessitent un utilisateur authentifié
         - { path: ^/api, roles: IS_AUTHENTICATED_FULLY }
 
