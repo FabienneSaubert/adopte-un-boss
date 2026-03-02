@@ -50,6 +50,12 @@ class Utilisateur implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\OneToOne(mappedBy: 'utilisateur', cascade: ['persist', 'remove'])]
     private ?Recruteur $recruteur = null;
 
+    #[ORM\Column(length: 100, nullable: true)]
+    private ?string $reset_token = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $reset_token_expires_at = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -214,5 +220,24 @@ class Utilisateur implements UserInterface, PasswordAuthenticatedUserInterface
     public function eraseCredentials(): void
     {
         // Comme dans notre cas les identifiants ne sont pas stockés en mémoire, on peut laisser la méthode vide
+    }
+
+    public function getResetToken(): ?string
+    {
+        return $this->reset_token;
+    }
+    public function setResetToken(?string $token): static
+    {
+        $this->reset_token = $token;
+        return $this;
+    }
+    public function getResetTokenExpiresAt(): ?\DateTimeImmutable
+    {
+        return $this->reset_token_expires_at;
+    }
+    public function setResetTokenExpiresAt(?\DateTimeImmutable $date): static
+    {
+        $this->reset_token_expires_at = $date;
+        return $this;
     }
 }
