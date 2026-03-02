@@ -19,5 +19,8 @@ lexik_jwt_authentication:
     
     # Durée de vie du token d'accès
     # Son but est d'avoir une durée courte afin de limiter les dégâts lors d'un vol de token.
-    # Défini le plus souvent selon l'usage métier, dans notre cas à 900 secondes (15 minutes)
-    token_ttl: 900
+    # Défini le plus souvent selon l'usage métier, dans notre cas à 900 secondes (15 minutes).
+    # La valeur de la durée de vie du token est stockée dans l'env afin qu'elle soit paramètrable
+    # via l'env local (.env.local), afin de rendre plus facile les parties dev (temps longs pour tests)
+    # et prod (temps courts à changer au besoin).
+    token_ttl: '%env(int:JWT_ACCESS_TOKEN_TTL)%'
