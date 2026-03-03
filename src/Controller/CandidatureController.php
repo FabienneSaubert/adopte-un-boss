@@ -194,7 +194,7 @@ final class CandidatureController extends AbstractController
             'candidat' => $candidature->getCandidat() ? [
                 'id' => $candidature->getCandidat()->getId(),
                 'uuid' => $candidature->getCandidat()->getUuid(),
-                'cv' => $candidature->getCandidat()->getCv(),
+                'cvFilename' => $candidature->getCandidat()->getCvFilename(),
                 'niveau_etude' => $candidature->getCandidat()->getNiveauEtude(),
                 'departement' => $candidature->getCandidat()->getDepartement() ? [
                     'id' => $candidature->getCandidat()->getDepartement()->getId(),
@@ -203,8 +203,10 @@ final class CandidatureController extends AbstractController
                 'competences' => array_map(
                     fn($competence) => [
                         'id' => $competence->getId(),
+                        'type' => $competence->getType(),
+                        'nom' => $competence->getNom(),
+                        'domaine' => $competence->getDomaine()
                     ],
-
                     // Transforme collection competences en tableau
                     $candidature->getCandidat()->getCompetences()->toArray()
                 ),

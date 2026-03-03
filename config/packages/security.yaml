@@ -1,0 +1,115 @@
+security:
+    # Définit comment Symfony vérifie les mots de passe.
+    password_hashers:
+        # 'auto' permet de détecter automatiquement l'algorithme utilisé (bcrypt, argon2, etc.)
+        # Compatible avec password_hash() natif de PHP.
+        Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface: "auto"
+
+    # Définit où Symfony doit chercher les utilisateurs.
+    providers:
+        # Ici : dans la base de données via l'entité Utilisateur.
+        app_user_provider:
+            entity:
+                # Entité utilisée pour l'authentification
+                class: App\Entity\Utilisateur
+                # Colonne utilisée pour identifier l'utilisateur
+                property: email
+
+    # Un firewall est une zone de sécurité.
+    # Symfony applique le PREMIER firewall dont le pattern correspond à l’URL.
+    firewalls:
+        # Désactive la sécurité pour le profiler et les assets.
+        # Uniquement utile en développement.
+        dev:
+            pattern: ^/(_profiler|_wdt|assets|build)/
+            security: false
+
+        # Gère uniquement la route de connexion.
+        login:
+            # S'applique uniquement à /api/login
+            pattern: ^/api/login
+            # Aucune session (API REST = sans état)
+            stateless: true
+            # On utilise le provider pour l'accès à la base de données via l'entité Utilisateur
+            provider: app_user_provider
+
+            # Active l'authentification JSON automatique
+            json_login:
+                # Route interceptée automatiquement, aucun contrôleur nécessaire
+                check_path: /api/login
+                # Champ dans le JSON envoyé par le client utilisé comme identifiant
+                username_path: email
+                # Champ dans le JSON envoyé par le client contenant le mot de passe
+                password_path: password
+
+                # Handlers fournis par LexikJWT
+                # En cas de succès → génération automatique du token JWT
+                success_handler: lexik_jwt_authentication.handler.authentication_success
+                # En cas d’échec → renvoi d'une erreur JSON
+                failure_handler: lexik_jwt_authentication.handler.authentication_failure
+
+        # Gère toutes les autres routes API
+        api:
+            # S'applique à toutes les routes commençants par /api
+            pattern: ^/api
+
+            # Aucune session
+            stateless: true
+
+            # Point d'entrée à utiliser par défaut car il existe plusieurs points d'entrée définis dans le firewall.
+            # On utilise le point d'entrée jwt afin qu'il y est vérification du token d'accès pour toutes les autres
+            # routes qui ne concernent pas le refresh du token.
+            entry_point: jwt
+
+            # Provider permettant la création automatique de l'instance utilisateur pour chaque route dans ce firewall.
+            # Cela va permettre dans les contrôleurs de récupérer les données utilisateur en base de données via le getter getUser()
+            provider: app_user_provider
+
+            # Active la vérification automatique du token JWT
+            # Symfony vérifie :
+            # - la signature
+            # - l'expiration
+            # - la validité du token
+            jwt: ~
+
+            # Active le refresh du token par JWTRefreshTokenBundle
+            refresh_jwt:
+                # Sur le chemin /api/token/refresh uniquement, le refresh du token va se lancer
+                check_path: /api/token/refresh
+
+    # Définit qui peut accéder à quoi.
+    # IMPORTANT : seule la première règle correspondante est appliquée.
+    access_control:
+        # Routes d'inscription selon le rôle utilisateur, accessibles publiquement
+        - { path: ^/api/candidat, methods: [POST], roles: PUBLIC_ACCESS }
+        - { path: ^/api/recruteur, methods: [POST], roles: PUBLIC_ACCESS }
+
+        # Route de connexion et de renouvellement de token accessible publiquement
+        - { path: ^/api/(login|token/refresh), methods: [POST], roles: PUBLIC_ACCESS }
+
+        # Lecture publique des offres
+        - { path: ^/api/offre, methods: [GET], roles: PUBLIC_ACCESS }
+
+        # Demande de contact publique
+        - { path: ^/api/demandecontact, methods: [POST], roles: PUBLIC_ACCESS }
+
+        # Réiniatilisation de mot de passe - envoi de l'email
+        # Envoi via l'URL de l'API : /reset-password
+        - { path: ^/api/utilisateur/reset-password$, methods: [POST], roles: PUBLIC_ACCESS }
+        # Réiniatilisation de mot de passe - envoi du nouveau mot de passe
+        # Envoi via l'URL de l'API : /reset-password?token=...
+        - { path: ^/api/utilisateur/reset-password, roles: PUBLIC_ACCESS }
+        
+        # Toutes les autres routes /api nécessitent un utilisateur authentifié
+        - { path: ^/api, roles: IS_AUTHENTICATED_FULLY }
+
+when@test:
+    security:
+        password_hashers:
+            # Password hashers are resource-intensive by design to ensure security.
+            # In tests, it's safe to reduce their cost to improve performance.
+            Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface:
+                algorithm: auto
+                cost: 4 # Lowest possible value for bcrypt
+                time_cost: 3 # Lowest possible value for argon
+                memory_cost: 10 # Lowest possible value for argon
