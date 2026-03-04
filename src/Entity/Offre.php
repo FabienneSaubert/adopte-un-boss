@@ -59,7 +59,7 @@ class Offre
     /**
      * @var Collection<int, Candidature>
      */
-    #[ORM\OneToMany(targetEntity: Candidature::class, mappedBy: 'offre')]
+    #[ORM\OneToMany(targetEntity: Candidature::class, mappedBy: 'offre', cascade: ['persist', 'remove'])]
     private Collection $candidatures;
 
     #[ORM\ManyToOne(inversedBy: 'offres')]
