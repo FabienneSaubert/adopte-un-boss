@@ -243,6 +243,9 @@ final class CandidatureController extends AbstractController
                 // Récupère l'objet utilisateur lié au candidat (id uniquement)
                 'utilisateur' => $candidature->getCandidat()->getUtilisateur() ? [
                     'id' => $candidature->getCandidat()->getUtilisateur()->getId(),
+                    'nom' => $candidature->getCandidat()->getUtilisateur()->getNom(),
+                    'prenom' => $candidature->getCandidat()->getUtilisateur()->getPrenom(),
+                    'email' => $candidature->getCandidat()->getUtilisateur()->getEmail(),
                 ] : null
             ] : null,
 
