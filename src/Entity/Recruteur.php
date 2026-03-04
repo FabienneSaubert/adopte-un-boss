@@ -35,7 +35,7 @@ class Recruteur
     /**
      * @var Collection<int, Offre>
      */
-    #[ORM\OneToMany(targetEntity: Offre::class, mappedBy: 'recruteur')]
+    #[ORM\OneToMany(targetEntity: Offre::class, mappedBy: 'recruteur', cascade: ['persist', 'remove'])]
     private Collection $offres;
 
     public function __construct()
