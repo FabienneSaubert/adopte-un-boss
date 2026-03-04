@@ -33,3 +33,6 @@
 **/vendor
 LICENSE
 README.md
+
+# Empêche les clés Lexiq d'être stockées dans l'image du conteneur
+config/jwt/*.pem
