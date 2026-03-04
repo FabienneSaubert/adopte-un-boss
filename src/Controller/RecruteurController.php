@@ -161,7 +161,7 @@ final class RecruteurController extends AbstractController
         return $this->json($this->serializeRecruteur($recruteur));
     }
 
-    #[Route('/me', name: 'api_recruteur_me_edit', methods: ['PATCH'])]
+    #[Route('/me', name: 'api_recruteur_me_edit', methods: ['PUT', 'PATCH'])]
     public function editMe(
         Request $request,
         EntityManagerInterface $entityManager
@@ -218,6 +218,25 @@ final class RecruteurController extends AbstractController
 
             $recruteur->setTelephonePro($telephone);
         }
+
+        $isPut = $request->getMethod() === 'PUT';
+
+        if (array_key_exists('email_pro', $data) || $isPut) {
+            // On utilise le même type de validation que lors de la création
+            try {
+                // On créé la valeur valide de l'email via la classe
+                $emailPro = EmailPro::fromString($data['email_pro'] ?? null);
+                // Puis on met à jour l'email pro du recruteur
+                $recruteur->setEmailPro($emailPro?->asString());
+            }
+            // Si une exception a été levée lors de la validation, et qu'elle est de type InvalidArgumentException
+            catch (InvalidArgumentException $e) {
+                // On peut la traiter exactement de la même manière
+                return $this->errorResponse($e->getMessage(), Response::HTTP_BAD_REQUEST);
+            }
+        }
+
+        
 
         $entityManager->flush();
 
