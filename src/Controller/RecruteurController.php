@@ -355,7 +355,7 @@ final class RecruteurController extends AbstractController
             "utilisateur" => [
                 "nom" => $recruteur->getUtilisateur()->getNom(),
                 "prenom" => $recruteur->getUtilisateur()->getPrenom(),
-                "date_de_naissance" => $recruteur->getUtilisateur()->getDateDeNaissance(),
+                "date_de_naissance" => $recruteur->getUtilisateur()->getDateDeNaissance()?->format('d-m-Y'),
                 "email" => $recruteur->getUtilisateur()->getEmail(),
                 "telephone" => $recruteur->getUtilisateur()->getTelephone(),
             ],
