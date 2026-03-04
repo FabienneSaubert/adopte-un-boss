@@ -30,6 +30,23 @@ final class CandidatureController extends AbstractController
         return $this->json($candidatures);
     }
 
+    #[Route('/me', name: 'api_candidature_get_collection_me', methods: ['GET'])]
+    public function getMyCandidat(CandidatureRepository $candidatureRepository): JsonResponse
+    {
+        $candidat = $this->getCandidatConnecte();
+
+        if (!$candidat) {
+            return $this->errorResponse('Candidat non connecté ou introuvable', Response::HTTP_UNAUTHORIZED);
+        }
+
+        $candidatures = array_map(
+            fn(Candidature $candidature) => $this->serializeCandidature($candidature),
+            $candidatureRepository->findBy(['candidat' => $candidat])
+        );
+
+        return $this->json($candidatures);
+    }
+
     #[Route('/me', name: 'api_candidature_post_collection_me', methods: ['POST'])]
     #[Route('', name: 'api_candidature_post_collection', methods: ['POST'])]
     public function new(
