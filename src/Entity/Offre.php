@@ -77,6 +77,9 @@ class Offre
     )]
     private Collection $selectionCompetences;
 
+    // Score pour le matching
+    private int $score;
+
     public function __construct()
     {
         $this->candidatures = new ArrayCollection();
@@ -300,6 +303,17 @@ class Offre
                 $selectionCompetence->setOffre(null);
             }
         }
+
+        return $this;
+    }
+    public function getScore(): ?int
+    {
+        return $this->score;
+    }
+
+    public function setScore(int $score): static
+    {
+        $this->score = $score;
 
         return $this;
     }
