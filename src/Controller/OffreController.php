@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Entity\Candidat;
 use App\Entity\Offre;
+use App\Entity\Recruteur;
 use App\Entity\SelectionCompetence;
 use App\Enum\DomaineActivite;
 use App\Enum\NiveauEtude;
@@ -45,6 +46,15 @@ final class OffreController extends AbstractController
         if ($candidat) {
             // C'est qu'il lui faut les offres triées avec le système de matching
             $matchingService->match($candidat,$offres);
+        }
+        else {
+            // Si Lexiq a réussi à déterminer un recruteur
+            $recruteur = $this->getRecruteurConnecte();
+
+            if ($recruteur) {
+                // Les offres sont filtrées par son ID
+                $offres = $offreRepository->findBy(['recruteur' => $recruteur]);
+            }
         }
 
         // Sérialization des offres
@@ -788,5 +798,11 @@ final class OffreController extends AbstractController
     {
         $user = $this->getUser();
         return $user instanceof \App\Entity\Utilisateur ? $user->getCandidat() : null;
+    }
+
+    private function getRecruteurConnecte(): ?Recruteur
+    {
+        $user = $this->getUser();
+        return $user instanceof \App\Entity\Utilisateur ? $user->getRecruteur() : null;
     }
 }
