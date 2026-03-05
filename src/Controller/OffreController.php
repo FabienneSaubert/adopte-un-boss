@@ -25,6 +25,7 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/api/offre')]
 final class OffreController extends AbstractController
 {
+    #[Route(path: '/me', name: 'api_offre_get_collection_me', methods: ['GET'])]
     #[Route(name: 'api_offre_get_collection', methods: ['GET'])]
     public function index(
         Request $request,
@@ -48,12 +49,22 @@ final class OffreController extends AbstractController
             $matchingService->match($candidat,$offres);
         }
         else {
-            // Si Lexiq a réussi à déterminer un recruteur
-            $recruteur = $this->getRecruteurConnecte();
+            // Sinon, il s'agit peut-être d'un recruteur qui souhaite obtenir ses annonces
 
-            if ($recruteur) {
-                // Les offres sont filtrées par son ID
-                $offres = $offreRepository->findBy(['recruteur' => $recruteur]);
+            // On vérifie donc si la requête a utilisé la route /me
+            $route = $request->attributes->get('_route');
+
+            // Si c'est le cas
+            if ($route === 'api_offre_get_collection_me') {
+                // On vérifie qu'il s'agit bien d'un recruteur qui demande les annonces
+
+                // Si Lexiq a réussi à déterminer un recruteur
+                $recruteur = $this->getRecruteurConnecte();
+    
+                if ($recruteur) {
+                    // Les offres sont filtrées par son ID
+                    $offres = $offreRepository->findBy(['recruteur' => $recruteur]);
+                }
             }
         }
 
