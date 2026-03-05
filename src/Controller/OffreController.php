@@ -36,7 +36,7 @@ final class OffreController extends AbstractController
         // Récupération de la page par le query parameter p si défini, sinon 1 par défaut
         $page = (int) $request->query->get('p', 1);
         // Nombre maximal d'offres affichées sur une liste
-        $limite = 3;
+        $limite = 30;
         // Recupération des offres paginnées
         $offres = $offreRepository->findLatestPaginated($page,$limite);
         
