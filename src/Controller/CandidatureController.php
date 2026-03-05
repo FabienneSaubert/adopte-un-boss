@@ -18,12 +18,32 @@ use Symfony\Component\Routing\Attribute\Route;
 final class CandidatureController extends AbstractController
 {
     #[Route('', name: 'api_candidature_get_collection', methods: ['GET'])]
-    public function list(CandidatureRepository $candidatureRepository): JsonResponse
+    public function list(
+        Request $request,
+        CandidatureRepository $candidatureRepository,
+        OffreRepository $offreRepository
+    ): JsonResponse
     {
+        // Récupération du paramètre query de l'offre, par défaut invalide à 0
+        $offreId = (int) $request->query->get('offreId', 0);
+
+        // Si l'offre ID est à 0 (donc invalide)
+        if ($offreId === 0) {
+            return $this->errorResponse("Candidatures introuvables : ID de l'offre invalide.", Response::HTTP_BAD_REQUEST);
+        }
+
+        // Récupération de l'offre en base de données
+        $offre = $offreRepository->find($offreId);
+
+        // Vérification de l'existence de l'offre
+        if ($offre === null) {
+            return $this->errorResponse("Candidatures introuvables : l'offre est introuvable en base de données.", Response::HTTP_BAD_REQUEST);
+        }
+
         // Récupération du tableau d'objet "Candidatures" ezt serialisation pour chaque index du tableau
         $candidatures = array_map(
             fn(Candidature $candidature) => $this->serializeCandidature($candidature),
-            $candidatureRepository->findAll()
+            $candidatureRepository->findBy(['offre' => $offre])
         );
 
         // Retourne la lsite des objets "Candidatures" formatée
