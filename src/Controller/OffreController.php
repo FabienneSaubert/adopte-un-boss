@@ -2,7 +2,9 @@
 
 namespace App\Controller;
 
+use App\Entity\Candidat;
 use App\Entity\Offre;
+use App\Entity\Recruteur;
 use App\Entity\SelectionCompetence;
 use App\Enum\DomaineActivite;
 use App\Enum\NiveauEtude;
@@ -11,6 +13,7 @@ use App\Repository\CompetenceRepository;
 use App\Repository\DepartementRepository;
 use App\Repository\OffreRepository;
 use App\Repository\RecruteurRepository;
+use App\Service\MatchingService;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -22,15 +25,57 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/api/offre')]
 final class OffreController extends AbstractController
 {
+    #[Route(path: '/me', name: 'api_offre_get_collection_me', methods: ['GET'])]
     #[Route(name: 'api_offre_get_collection', methods: ['GET'])]
-    public function index(OffreRepository $offreRepository): JsonResponse
+    public function index(
+        Request $request,
+        OffreRepository $offreRepository,
+        MatchingService $matchingService
+    ): JsonResponse
     {
-        $offre = array_map(
+        // Récupération de la page par le query parameter p si défini, sinon 1 par défaut
+        $page = (int) $request->query->get('p', 1);
+        // Nombre maximal d'offres affichées sur une liste
+        $limite = 30;
+        // Recupération des offres paginnées
+        $offres = $offreRepository->findLatestPaginated($page,$limite);
+        
+        // Recupération de l'instance du candidat via l'access token envoyé par le client
+        $candidat = $this->getCandidatConnecte();
+
+        // Si Lexiq a réussi à déterminer un candidat
+        if ($candidat) {
+            // C'est qu'il lui faut les offres triées avec le système de matching
+            $matchingService->match($candidat,$offres);
+        }
+        else {
+            // Sinon, il s'agit peut-être d'un recruteur qui souhaite obtenir ses annonces
+
+            // On vérifie donc si la requête a utilisé la route /me
+            $route = $request->attributes->get('_route');
+
+            // Si c'est le cas
+            if ($route === 'api_offre_get_collection_me') {
+                // On vérifie qu'il s'agit bien d'un recruteur qui demande les annonces
+
+                // Si Lexiq a réussi à déterminer un recruteur
+                $recruteur = $this->getRecruteurConnecte();
+    
+                if ($recruteur) {
+                    // Les offres sont filtrées par son ID
+                    $offres = $offreRepository->findBy(['recruteur' => $recruteur]);
+                }
+            }
+        }
+
+        // Sérialization des offres
+        $offresSerializees = array_map(
             fn(Offre $offre) => $this->serializeOffre($offre),
-            $offreRepository->findAll()
+            $offres
         );
 
-        return $this->json($offre);
+        // Renvoi des offres serializées, et matchées si candidat connecté
+        return $this->json($offresSerializees);
     }
 
     #[Route(name: 'api_offre_post_item', methods: ['POST'])]
@@ -758,5 +803,17 @@ final class OffreController extends AbstractController
     private function errorResponse(string $message, int $status): JsonResponse
     {
         return $this->json(['error' => $message], $status);
+    }
+
+    private function getCandidatConnecte(): ?Candidat
+    {
+        $user = $this->getUser();
+        return $user instanceof \App\Entity\Utilisateur ? $user->getCandidat() : null;
+    }
+
+    private function getRecruteurConnecte(): ?Recruteur
+    {
+        $user = $this->getUser();
+        return $user instanceof \App\Entity\Utilisateur ? $user->getRecruteur() : null;
     }
 }

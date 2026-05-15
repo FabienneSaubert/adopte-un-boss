@@ -11,6 +11,8 @@ namespace App\Controller;
 // Cette classe Entreprise représente toutes les données d'un entreprise, avec leur formats et le getter et setter.
 use App\Entity\Entreprise;
 
+use App\Entity\Utilisateur;
+
 // On importe les méthodes utilitaires permettant de manipuler précisément l'entité Entreprise.
 // Les méthodes dans cette classe sont spécifiques au entreprise, findAll() servira par exemple à
 // obtenir la liste de tous les entreprise, c'est à ce moment-là que les requêtes en base de données seront préparées.
@@ -48,6 +50,96 @@ use Symfony\Component\Routing\Attribute\Route;
 // On utilise le mot clé "final" pour interdire à une classe enfant de redéfinir les méthodes de ce contrôleur.
 final class EntrepriseController extends AbstractController
 {
+
+#[Route('/me', name: 'api_entreprise_me_get', methods: ['GET'])]
+public function me(): JsonResponse
+{
+    $entreprise = $this->getEntrepriseConnectee();
+    if (!$entreprise) {
+        return $this->errorResponse("Entreprise introuvable ou non authentifié.", Response::HTTP_UNAUTHORIZED);
+    }
+
+    return $this->json($this->serializeEntreprise($entreprise));
+}
+
+#[Route('/me', name: 'api_entreprise_me_patch', methods: ['PATCH', 'PUT'])]
+public function editMe(
+    Request $request,
+    EntrepriseInputParser $entrepriseInputParser,
+    EntityManagerInterface $entityManager
+): JsonResponse {
+    $entreprise = $this->getEntrepriseConnectee();
+    if (!$entreprise) {
+        return $this->errorResponse("Entreprise introuvable ou non authentifié.", Response::HTTP_UNAUTHORIZED);
+    }
+
+    $data = $this->decodeJson($request);
+    if ($data === null) {
+        return $this->errorResponse("Données dans le JSON body invalides.", Response::HTTP_BAD_REQUEST);
+    }
+
+    $isPut = $request->getMethod() === 'PUT';
+
+    // ⚠️ Ici tu reprends EXACTEMENT ta logique actuelle de edit()
+    if (array_key_exists('nom_entreprise', $data) || $isPut) {
+        $nomError = null;
+        $nom = $entrepriseInputParser->parseNom((string) ($data["nom_entreprise"] ?? null), true, $nomError);
+        if ($nom === null) return $this->errorResponse($nomError ?? "Le nom n'est pas valide.", Response::HTTP_BAD_REQUEST);
+        $entreprise->setNom($nom);
+    }
+
+    if (array_key_exists('siret_entreprise', $data) || $isPut) {
+        $siretError = null;
+        $siret = $entrepriseInputParser->parseSiret((string) ($data["siret_entreprise"] ?? null), true, $siretError);
+        if ($siret === null) return $this->errorResponse($siretError ?? "Le N° de SIRET n'est pas valide.", Response::HTTP_BAD_REQUEST);
+        $entreprise->setSiret($siret);
+    }
+
+    if (array_key_exists('adresse_entreprise', $data) || $isPut) {
+        $adresseError = null;
+        $adresse = $entrepriseInputParser->parseAdresse((string) ($data["adresse_entreprise"] ?? null), true, $adresseError);
+        if ($adresse === null) return $this->errorResponse($adresseError ?? "L'adresse n'est pas valide.", Response::HTTP_BAD_REQUEST);
+        $entreprise->setAdresse($adresse);
+    }
+
+    $entityManager->flush();
+
+    return $this->json($this->serializeEntreprise($entreprise));
+}
+
+#[Route('/me', name: 'api_entreprise_me_delete', methods: ['DELETE'])]
+public function deleteMe(EntityManagerInterface $entityManager): JsonResponse
+{
+    $entreprise = $this->getEntrepriseConnectee();
+    if (!$entreprise) {
+        return $this->errorResponse("Entreprise introuvable ou non authentifié.", Response::HTTP_UNAUTHORIZED);
+    }
+
+    $entityManager->remove($entreprise);
+    $entityManager->flush();
+
+    return $this->json(null, Response::HTTP_NO_CONTENT);
+}
+
+/**
+ * Récupère l'entreprise liée au recruteur connecté
+ */
+private function getEntrepriseConnectee(): ?Entreprise
+{
+    $user = $this->getUser();
+
+    if (!$user instanceof Utilisateur) {
+        return null;
+    }
+
+    $recruteur = $user->getRecruteur();
+    if (!$recruteur) {
+        return null;
+    }
+
+    return $recruteur->getEntreprise();
+}
+
     // On déclare que pour la route, nommée "api_entreprise_get_collection", la méthode publique index()
     // sera exécutée si la méthode de la requête du client est GET.
     // Comme aucun chemin n'est précisé ici, la route correspond à : /api/entreprise

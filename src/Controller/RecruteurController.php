@@ -44,8 +44,7 @@ final class RecruteurController extends AbstractController
         EntrepriseFactory $entrepriseFactory,
         EntrepriseRepository $entrepriseRepository,
         EntityManagerInterface $entityManager
-    ): JsonResponse
-    {
+    ): JsonResponse {
         $data = $this->decodeJson($request);
         if ($data === null) {
             return $this->errorResponse("Données dans le JSON body invalides.", Response::HTTP_BAD_REQUEST);
@@ -96,8 +95,7 @@ final class RecruteurController extends AbstractController
             if ($telephonePro === null) {
                 return $this->errorResponse($telephoneProError ?? "Le téléphone professionnel n'est pas valide.", Response::HTTP_BAD_REQUEST);
             }
-        }
-        else {
+        } else {
             $telephonePro = null;
         }
         $data["telephone_pro"] = $telephonePro;
@@ -116,8 +114,7 @@ final class RecruteurController extends AbstractController
             // On utilise la même entreprise (on fait le choix ici d'ignorer les autre informations
             // que le client a renseigné sur l'entreprise, ça sera à l'admin de corriger les conflits éventuels)
             $entreprise = $entrepriseExistante;
-        }
-        else {
+        } else {
             // Si aucune entreprise existe avec le N° de SIRET envoyé, on récupère une nouvelle
             // instance de l'entité Entreprise grâce à son factory
             $entreprise = $entrepriseFactory->create($data);
@@ -149,6 +146,122 @@ final class RecruteurController extends AbstractController
         return $this->json($this->serializeRecruteur($recruteur), Response::HTTP_CREATED);
     }
 
+    #[Route('/me', name: 'api_recruteur_me', methods: ['GET'])]
+    public function me(): JsonResponse
+    {
+        $recruteur = $this->getRecruteurConnecte();
+
+        if (!$recruteur) {
+            return $this->errorResponse(
+                "Recruteur non authentifié.",
+                Response::HTTP_UNAUTHORIZED
+            );
+        }
+
+        return $this->json($this->serializeRecruteur($recruteur));
+    }
+
+    #[Route('/me', name: 'api_recruteur_me_edit', methods: ['PUT', 'PATCH'])]
+    public function editMe(
+        Request $request,
+        EntityManagerInterface $entityManager
+    ): JsonResponse {
+        $recruteur = $this->getRecruteurConnecte();
+
+        if (!$recruteur) {
+            return $this->errorResponse(
+                "Recruteur non authentifié.",
+                Response::HTTP_UNAUTHORIZED
+            );
+        }
+
+        $data = $this->decodeJson($request);
+        if ($data === null) {
+            return $this->errorResponse(
+                "Données JSON invalides.",
+                Response::HTTP_BAD_REQUEST
+            );
+        }
+
+        if (array_key_exists('poste', $data)) {
+            $posteError = null;
+            $poste = $this->parsePoste(
+                (string) $data['poste'],
+                true,
+                $posteError
+            );
+
+            if ($poste === null) {
+                return $this->errorResponse(
+                    $posteError ?? "Poste invalide.",
+                    Response::HTTP_BAD_REQUEST
+                );
+            }
+
+            $recruteur->setPoste($poste);
+        }
+
+        if (array_key_exists('telephone_pro', $data)) {
+            $telephoneError = null;
+            $telephone = $this->parseTelephonePro(
+                (string) $data['telephone_pro'],
+                false,
+                $telephoneError
+            );
+
+            if ($telephone === null) {
+                return $this->errorResponse(
+                    $telephoneError ?? "Téléphone invalide.",
+                    Response::HTTP_BAD_REQUEST
+                );
+            }
+
+            $recruteur->setTelephonePro($telephone);
+        }
+
+        $isPut = $request->getMethod() === 'PUT';
+
+        if (array_key_exists('email_pro', $data) || $isPut) {
+            // On utilise le même type de validation que lors de la création
+            try {
+                // On créé la valeur valide de l'email via la classe
+                $emailPro = EmailPro::fromString($data['email_pro'] ?? null);
+                // Puis on met à jour l'email pro du recruteur
+                $recruteur->setEmailPro($emailPro?->asString());
+            }
+            // Si une exception a été levée lors de la validation, et qu'elle est de type InvalidArgumentException
+            catch (InvalidArgumentException $e) {
+                // On peut la traiter exactement de la même manière
+                return $this->errorResponse($e->getMessage(), Response::HTTP_BAD_REQUEST);
+            }
+        }
+
+        
+
+        $entityManager->flush();
+
+        return $this->json($this->serializeRecruteur($recruteur));
+    }
+
+    #[Route('/me', name: 'api_recruteur_me_delete', methods: ['DELETE'])]
+    public function deleteMe(
+        EntityManagerInterface $entityManager
+    ): JsonResponse {
+        $recruteur = $this->getRecruteurConnecte();
+
+        if (!$recruteur) {
+            return $this->errorResponse(
+                "Recruteur non authentifié.",
+                Response::HTTP_UNAUTHORIZED
+            );
+        }
+
+        $entityManager->remove($recruteur);
+        $entityManager->flush();
+
+        return $this->json(null, Response::HTTP_NO_CONTENT);
+    }
+
     #[Route('/{id}', name: 'api_recruteur_show', methods: ['GET'])]
     public function show(int $id, RecruteurRepository $recruteurRepository): JsonResponse
     {
@@ -161,7 +274,7 @@ final class RecruteurController extends AbstractController
         return $this->json($this->serializeRecruteur($recruteur));
     }
 
-    #[Route('/{id}', name: 'api_recruteur_put_item', methods: ['PUT','PATCH'])]
+    #[Route('/{id}', name: 'api_recruteur_put_item', methods: ['PUT', 'PATCH'])]
     public function edit(int $id, Request $request, RecruteurRepository $recruteurRepository, EntityManagerInterface $entityManager): JsonResponse
     {
         $recruteur = $recruteurRepository->find($id);
@@ -242,7 +355,7 @@ final class RecruteurController extends AbstractController
             "utilisateur" => [
                 "nom" => $recruteur->getUtilisateur()->getNom(),
                 "prenom" => $recruteur->getUtilisateur()->getPrenom(),
-                "date_de_naissance" => $recruteur->getUtilisateur()->getDateDeNaissance(),
+                "date_de_naissance" => $recruteur->getUtilisateur()->getDateDeNaissance()?->format('d-m-Y'),
                 "email" => $recruteur->getUtilisateur()->getEmail(),
                 "telephone" => $recruteur->getUtilisateur()->getTelephone(),
             ],
@@ -323,12 +436,12 @@ final class RecruteurController extends AbstractController
             return null;
         }
 
-        if (!is_string($value)){
+        if (!is_string($value)) {
             $error = "Le téléphone professionnel doit contenir des chiffres.";
             return null;
         }
 
-        $value = str_replace(' ','',$value);
+        $value = str_replace(' ', '', $value);
 
         if (mb_strlen($value) > 12) {
             $error = "Le téléphone professionnel ne peut pas dépasser 12 caractères.";
@@ -347,5 +460,11 @@ final class RecruteurController extends AbstractController
     private function errorResponse(string $message, int $status): JsonResponse
     {
         return $this->json(['error' => $message], $status);
+    }
+
+    private function getRecruteurConnecte(): ?Recruteur
+    {
+        $user = $this->getUser();
+        return $user instanceof \App\Entity\Utilisateur ? $user->getRecruteur() : null;
     }
 }
