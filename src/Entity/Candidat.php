@@ -50,7 +50,7 @@ class Candidat
     /**
      * @var Collection<int, Candidature>
      */
-    #[ORM\OneToMany(targetEntity: Candidature::class, mappedBy: 'candidat')]
+    #[ORM\OneToMany(targetEntity: Candidature::class, mappedBy: 'candidat', cascade: ['persist', 'remove'])]
     private Collection $candidatures;
 
     public function __construct()

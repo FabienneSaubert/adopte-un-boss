@@ -59,7 +59,7 @@ class Offre
     /**
      * @var Collection<int, Candidature>
      */
-    #[ORM\OneToMany(targetEntity: Candidature::class, mappedBy: 'offre')]
+    #[ORM\OneToMany(targetEntity: Candidature::class, mappedBy: 'offre', cascade: ['persist', 'remove'])]
     private Collection $candidatures;
 
     #[ORM\ManyToOne(inversedBy: 'offres')]
@@ -76,6 +76,9 @@ class Offre
         orphanRemoval: true
     )]
     private Collection $selectionCompetences;
+
+    // Score pour le matching
+    private int $score;
 
     public function __construct()
     {
@@ -300,6 +303,17 @@ class Offre
                 $selectionCompetence->setOffre(null);
             }
         }
+
+        return $this;
+    }
+    public function getScore(): ?int
+    {
+        return $this->score;
+    }
+
+    public function setScore(int $score): static
+    {
+        $this->score = $score;
 
         return $this;
     }

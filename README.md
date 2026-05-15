@@ -1,93 +1,279 @@
-# Adopte Un Boss
+# Adopte Un Boss – API
 
+## 🎀 Présentation
 
+**Adopte Un Boss** est une plateforme de mise en relation entre **candidats** et **recruteurs**, basée sur un système de **matching** entre profils, compétences et offres d’emploi.
 
-## Getting started
+Ce dépôt correspond à la **partie API** du projet.  
+L’API expose l’ensemble des fonctionnalités nécessaires à la plateforme :
+- gestion des candidats
+- gestion des recruteurs
+- gestion des entreprises
+- gestion des compétences
+- gestion des offres d’emploi
+- gestion des candidatures
+- gestion des demandes de contact
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+L’API est conçue pour être consommée par un client externe (application web ou mobile), par exemple :
+- **Flutter**
+- **React**
+- ou toute autre application front-end
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+👉 Le front-end et l’API sont **complètement découplés**.
 
-## Add your files
+---
 
-* [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+## 🛠️ Stack technique
+
+- **PHP 8+**
+- **Symfony**
+- **Doctrine ORM**
+- **MySQL / MariaDB**
+
+---
+
+## 🚀 Installation
+
+### 1️⃣ Cloner le projet
+
+#### 🔹 Pour un testeur (HTTPS)
+
+```bash
+git clone https://gitlab.com/floriangarciasoto/adopte-un-boss.git
+cd adopte-un-boss
+```
+
+#### 🔹 Pour un développeur du projet (SSH)
+
+```bash
+git clone git@gitlab.com:floriangarciasoto/adopte-un-boss.git
+cd adopte-un-boss
+```
+
+### 2️⃣ Sélection de la branche
+
+Selon l’état du projet que vous souhaitez **tester** ou **développer**, il peut être nécessaire de changer de branche après le clonage.
+
+Par convention :
+- `main` correspond à la version stable
+- `dev` correspond à la version de développement (branche la plus utilisée par les développeurs)
+
+Pour lister les branches disponibles :
+
+```bash
+git branch -a
+```
+
+Pour se placer sur la branche de développement :
+
+```bash
+git checkout dev
+```
+
+Ou, si la branche n’existe pas encore en local :
+
+```bash
+git checkout -b dev origin/dev
+```
+
+---
+
+### 3️⃣ Installer les dépendances PHP
+
+Le projet utilise **Composer** pour gérer les dépendances PHP.
+
+Après avoir cloné le dépôt et sélectionné la branche souhaitée, installez les dépendances avec la commande suivante :
+
+```bash
+composer install
+````
+
+Cette commande :
+
+* lit le fichier **`composer.lock`**
+* installe **exactement les versions** des dépendances définies pour le projet
+* supprime ou met à jour les packages si nécessaire
+* génère l’autoload des classes
+
+👉 Le fichier `composer.lock` est la **source de vérité** pour les dépendances.
+
+---
+
+#### 🔀 Dépendance à la branche
+
+Chaque branche du projet (`main`, `dev`, etc.) peut contenir :
+
+* un `composer.json` différent
+* et surtout un `composer.lock` différent
+
+Par conséquent :
+
+* après un changement de branche (`git checkout`)
+* ou après un `git pull` mettant à jour `composer.json` / `composer.lock`
+
+➡️ il est recommandé de faire `composer install`, afin de synchroniser l’environnement local avec l’état du projet sur la branche courante.
+
+---
+
+📌 **Bonnes pratiques** :
+
+* utiliser `composer install` (et non `composer update`)
+* ne jamais modifier manuellement `composer.lock`
+* toujours relancer `composer install` après un pull modifiant les dépendances
+
+---
+
+Une fois les dépendances installées, vous pouvez configurer la base de données, la créer avec ses entités et lancer le projet.
+
+---
+
+### 4️⃣ Configurer la base de données
+
+Le projet est fourni avec une **configuration par défaut** pour l’environnement de développement (`dev`) dans le fichier `.env`.
+
+Par défaut, vous trouverez une ligne de ce type :
+
+```env
+DATABASE_URL="mysql://root:@127.0.0.1:3306/adopte_un_boss?serverVersion=10.4.32-MariaDB&charset=utf8mb4"
+```
+
+⚠️ **Il ne faut pas modifier directement le fichier `.env`**.
+Si votre configuration locale diffère, vous devez créer un fichier **`.env.local`**, qui surchargera automatiquement les valeurs.
+
+---
+
+#### 🔧 Création du fichier `.env.local`
+
+À la racine du projet, copier le fichier `.env` pour créer le fichier `.env.local` :
+
+```bash
+cp .env .env.local
+```
+
+Puis modifiez **uniquement** la ligne `DATABASE_URL` dans `.env.local`.
+
+---
+
+#### 🧩 Détail des paramètres à configurer
+
+```env
+DATABASE_URL="mysql://user:password@127.0.0.1:3306/db_name?serverVersion=8.0"
+```
+
+| Élément         | Description                                            |
+| --------------- | ------------------------------------------------------ |
+| `user`          | Nom d’utilisateur MySQL (ex : `root`)                  |
+| `password`      | Mot de passe MySQL (vide possible selon config locale) |
+| `127.0.0.1`     | Adresse du serveur de base de données                  |
+| `3306`          | Port MySQL (par défaut : 3306)                         |
+| `db_name`       | Nom de la base de données                              |
+| `serverVersion` | Version exacte du serveur MySQL                        |
+
+---
+
+#### 🔍 Comment trouver la version du serveur MySQL
+
+La valeur `serverVersion` doit **correspondre à la version réelle de votre serveur MySQL**.
+
+Vous pouvez la trouver :
+
+* dans **phpMyAdmin** (page d’accueil → informations serveur)
+* ou via la commande SQL :
+
+```sql
+SELECT VERSION();
+```
+
+Exemples de valeurs valides :
+
+* `8.0`
+* `8.0.34`
+* `5.7`
+
+👉 En cas de doute, utilisez la version majeure (`8.0` par exemple).
+
+---
+
+#### ✅ Exemple de configuration locale
+
+```env
+DATABASE_URL="mysql://root:@127.0.0.1:3306/adopte_un_boss?serverVersion=8.0"
+```
+
+---
+
+📌 **Rappel important** :
+
+* `.env` → configuration par défaut du projet
+* `.env.local` → configuration locale personnelle (qui ne sera pas commit)
+
+---
+
+Une fois la base configurée, vous pouvez passer à la création et à la migration de la base de données.
+
+---
+
+### 5️⃣ Créer la base de données avec ses entités
+
+Par précaution, si une base existe déjà :
+
+```bash
+php bin/console doctrine:database:drop --force
+```
+Créer la base de données :
+
+```bash
+php bin/console doctrine:database:create
+```
+
+Appliquer les migrations :
+
+```bash
+php bin/console doctrine:migrations:migrate
+```
+
+---
+
+### 6️⃣ Gestion des tokens JWT pour l'authentification
+
+Créer la paire de clés permettant de signer les token JWT :
+
+```bash
+php bin/console lexik:jwt:generate-keypair --overwrite
+```
+
+Nettoyage de la table (à faire régulièrement ou à mettre en tant que tâche CRON) :
+
+```bash
+php bin/console gesdinet:jwt:clear
+```
+
+---
+
+### 7️⃣ Lancer le serveur de développement
+
+```bash
+symfony server:start
+```
+
+ou :
+
+```bash
+php -S localhost:8000 -t public
+```
+
+L’API est alors accessible sur :
 
 ```
-cd existing_repo
-git remote add origin https://gitlab.com/floriangarciasoto/adopte-un-boss.git
-git branch -M main
-git push -uf origin main
+http://localhost:8000/api/<entity>
 ```
 
-## Integrate with your tools
+Remplacer `<entity>` par l'entité que vous souhaitez requêter (ex. `candidat`).
 
-* [Set up project integrations](https://gitlab.com/floriangarciasoto/adopte-un-boss/-/settings/integrations)
+---
 
-## Collaborate with your team
+## 📌 Notes
 
-* [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
-
-## Test and Deploy
-
-Use the built-in continuous integration in GitLab.
-
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
-
-***
-
-# Editing this README
-
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
-
-## Suggestions for a good README
-
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+* L’authentification (JWT, sécurité, middleware) sera ajoutée ultérieurement.
+* Les échanges se font exclusivement en **JSON**.
+* Le projet suit une architecture **API-first**.
