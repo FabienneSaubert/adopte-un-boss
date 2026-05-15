@@ -2,6 +2,7 @@
 
 namespace App\Controller;
 
+use App\Entity\Candidat;
 use App\Entity\Candidature;
 use App\Repository\CandidatureRepository;
 use App\Repository\CandidatRepository;
@@ -17,18 +18,56 @@ use Symfony\Component\Routing\Attribute\Route;
 final class CandidatureController extends AbstractController
 {
     #[Route('', name: 'api_candidature_get_collection', methods: ['GET'])]
-    public function list(CandidatureRepository $candidatureRepository): JsonResponse
+    public function list(
+        Request $request,
+        CandidatureRepository $candidatureRepository,
+        OffreRepository $offreRepository
+    ): JsonResponse
     {
+        // Récupération du paramètre query de l'offre, par défaut invalide à 0
+        $offreId = (int) $request->query->get('offreId', 0);
+
+        // Si l'offre ID est à 0 (donc invalide)
+        if ($offreId === 0) {
+            return $this->errorResponse("Candidatures introuvables : ID de l'offre invalide.", Response::HTTP_BAD_REQUEST);
+        }
+
+        // Récupération de l'offre en base de données
+        $offre = $offreRepository->find($offreId);
+
+        // Vérification de l'existence de l'offre
+        if ($offre === null) {
+            return $this->errorResponse("Candidatures introuvables : l'offre est introuvable en base de données.", Response::HTTP_BAD_REQUEST);
+        }
+
         // Récupération du tableau d'objet "Candidatures" ezt serialisation pour chaque index du tableau
         $candidatures = array_map(
             fn(Candidature $candidature) => $this->serializeCandidature($candidature),
-            $candidatureRepository->findAll()
+            $candidatureRepository->findBy(['offre' => $offre])
         );
 
         // Retourne la lsite des objets "Candidatures" formatée
         return $this->json($candidatures);
     }
 
+    #[Route('/me', name: 'api_candidature_get_collection_me', methods: ['GET'])]
+    public function getMyCandidat(CandidatureRepository $candidatureRepository): JsonResponse
+    {
+        $candidat = $this->getCandidatConnecte();
+
+        if (!$candidat) {
+            return $this->errorResponse('Candidat non connecté ou introuvable', Response::HTTP_UNAUTHORIZED);
+        }
+
+        $candidatures = array_map(
+            fn(Candidature $candidature) => $this->serializeCandidature($candidature),
+            $candidatureRepository->findBy(['candidat' => $candidat])
+        );
+
+        return $this->json($candidatures);
+    }
+
+    #[Route('/me', name: 'api_candidature_post_collection_me', methods: ['POST'])]
     #[Route('', name: 'api_candidature_post_collection', methods: ['POST'])]
     public function new(
         Request $request,
@@ -43,21 +82,32 @@ final class CandidatureController extends AbstractController
             return $this->errorResponse('JSON invalide', Response::HTTP_BAD_REQUEST);
         }
 
-        //Gestionhamps requis
-        $requis = ['candidat_id', 'offre_id'];
-        foreach ($requis as $champs) {
-            if (!isset($data[$champs])) {
-                return $this->errorResponse("Le champs '$champs' est requis", Response::HTTP_BAD_REQUEST);
+        // Recupération du candidat connecté
+        $candidat = $this->getCandidatConnecte();
+
+        // Si le candidat n'a pas pu être recupéré, c'est qu'il n'est pas connecté
+        if (!$candidat) {
+            // On valide donc le champ 'candidat_id' dans le JSON de la requête
+
+            // Validation de l'ID du candidat transmis
+            if (!isset($data['candidat_id'])) {
+                return $this->errorResponse("Le champs 'candidat_id' est requis", Response::HTTP_BAD_REQUEST);
+            }
+
+            // Récupération du candidat
+            $candidat = $candidatRepository->find($data['candidat_id']);
+
+            // Si le candidat n'a toujours pas pu être obtenu
+            if (!$candidat) {
+                // Il est impossible de créer une candidature, on renvoi un message d'erreur
+                return $this->errorResponse('Candidat introuvable', Response::HTTP_NOT_FOUND);
             }
         }
 
-        // Récupération du candidat
-        $candidat = $candidatRepository->find($data['candidat_id']);
-        if (!$candidat) {
-            return $this->errorResponse('Candidat introuvable', Response::HTTP_NOT_FOUND);
-        }
-
         // Récupération de l'offre
+        if (!isset($data['offre_id'])) {
+            return $this->errorResponse("Le champs 'offre_id' est requis", Response::HTTP_BAD_REQUEST);
+        }
         $offre = $offreRepository->find($data['offre_id']);
         if (!$offre) {
             return $this->errorResponse('Offre introuvable', Response::HTTP_NOT_FOUND);
@@ -194,7 +244,7 @@ final class CandidatureController extends AbstractController
             'candidat' => $candidature->getCandidat() ? [
                 'id' => $candidature->getCandidat()->getId(),
                 'uuid' => $candidature->getCandidat()->getUuid(),
-                'cv' => $candidature->getCandidat()->getCv(),
+                'cvFilename' => $candidature->getCandidat()->getCvFilename(),
                 'niveau_etude' => $candidature->getCandidat()->getNiveauEtude(),
                 'departement' => $candidature->getCandidat()->getDepartement() ? [
                     'id' => $candidature->getCandidat()->getDepartement()->getId(),
@@ -203,14 +253,19 @@ final class CandidatureController extends AbstractController
                 'competences' => array_map(
                     fn($competence) => [
                         'id' => $competence->getId(),
+                        'type' => $competence->getType(),
+                        'nom' => $competence->getNom(),
+                        'domaine' => $competence->getDomaine()
                     ],
-
                     // Transforme collection competences en tableau
                     $candidature->getCandidat()->getCompetences()->toArray()
                 ),
                 // Récupère l'objet utilisateur lié au candidat (id uniquement)
                 'utilisateur' => $candidature->getCandidat()->getUtilisateur() ? [
                     'id' => $candidature->getCandidat()->getUtilisateur()->getId(),
+                    'nom' => $candidature->getCandidat()->getUtilisateur()->getNom(),
+                    'prenom' => $candidature->getCandidat()->getUtilisateur()->getPrenom(),
+                    'email' => $candidature->getCandidat()->getUtilisateur()->getEmail(),
                 ] : null
             ] : null,
 
@@ -249,5 +304,11 @@ final class CandidatureController extends AbstractController
     private function errorResponse(string $message, int $status): JsonResponse
     {
         return $this->json(['error' => $message], $status);
+    }
+
+    private function getCandidatConnecte(): ?Candidat
+    {
+        $user = $this->getUser();
+        return $user instanceof \App\Entity\Utilisateur ? $user->getCandidat() : null;
     }
 }

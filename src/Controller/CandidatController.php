@@ -15,6 +15,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Uid\Uuid;
 
@@ -32,6 +33,170 @@ final class CandidatController extends AbstractController
 
         return $this->json($candidats);
     }
+
+    #[Route('/me', name: 'api_candidat_me', methods: ['GET'])]
+    public function me(): JsonResponse
+    {
+        $user = $this->getUser();
+
+        if (!$user instanceof \App\Entity\Utilisateur) {
+            return $this->json(['error' => 'Non authentifié'], 401);
+        }
+
+        $candidat = $user->getCandidat();
+
+        if (!$candidat) {
+            return $this->json(['error' => 'Candidat introuvable'], 404);
+        }
+
+        return $this->json($this->serializeCandidat($candidat));
+    }
+
+    #[Route('/me/upload-cv', name: 'api_candidat_me_upload_cv', methods: ['POST'])]
+    public function meUploadCv(Request $request, EntityManagerInterface $entityManager): JsonResponse
+    {
+        $candidat = $this->getCandidatConnecte();
+
+        if (!$candidat) {
+            return $this->errorResponse('Candidat introuvable', Response::HTTP_NOT_FOUND);
+        }
+
+        $file = $request->files->get('cv');
+        if (!$file) {
+            return $this->errorResponse('Aucun fichier trouvé', Response::HTTP_BAD_REQUEST);
+        }
+        // Vérifier le type de fichier
+        $formatsAutorises = [
+            'application/pdf', // pdf
+            'application/msword', // ancien word .doc
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document' // nouveau word .docx
+        ];
+        // Vérif : est-ce que le type du fichier existe dans le tableau "formatsAutorisés" ? 
+        if (!in_array($file->getMimeType(), $formatsAutorises)) {
+            // getMimeType = obtiens le format du fichier (méthode de la class UploadedFile)
+            return $this->errorResponse('Format de fichier non autorisé. Utilisez PDF ou Word.', Response::HTTP_BAD_REQUEST);
+        }
+
+        // Vérifier la taille (max 5MB)
+        // 5 * 1024 * 1024 = 5 MB (5 × 1024 Ko × 1024 octets)
+        // getSize = méthode de la classe UploadedFile
+        if ($file->getSize() > 5 * 1024 * 1024) {
+            return $this->errorResponse('Fichier trop volumineux (max 5MB)', Response::HTTP_BAD_REQUEST);
+        }
+
+        // Définir le dossier d'upload
+        // récupère le chemin racine du projet Symfony et concaténation avec dossier cible 
+        // getParameter = méthode Symfony
+        $uuid = $candidat->getUuid(); // On récupère l'uuid du candidat
+        $uploadDir = $this->getParameter('kernel.project_dir') . '/var/storage/cv/' . $uuid;
+
+        // Si le dossier n'existe pas => on le crée 
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0777, true);
+            // création du dossier : 0777 = autorisation lecture/écriture/exécution pour tous, 
+            // true = crée dossier parent si nécessaire. 
+        }
+
+        // Générer un nom unique 
+        // id unique basé sur l'heure actuelle + underscore + nom du fichier normé 
+        // preg_replace = tous les caractères qui ne sont pas lettre, chiffre, point, underscore ou tiret
+        // sont remplacés par un underscore
+        // getClientOriginalName = méthode de la classe "UploadedFile"
+        $originalName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
+
+        // Gestion de la contrainte varchar(255) de la BDD
+        $extension = pathinfo($originalName, PATHINFO_EXTENSION);
+        $nomFichierSansExtension = pathinfo($originalName, PATHINFO_FILENAME);
+
+        $uniquePrefix = uniqid() . '_';
+
+        $maxLength = 255 - strlen($uniquePrefix) - strlen($extension) - 1; // -1 car le point n'est pas pas encore inclus
+
+        $nomFichierSansExtension = substr($nomFichierSansExtension, 0, $maxLength);
+
+        $newFilename = $uniquePrefix . $nomFichierSansExtension . '.' . $extension;
+
+        try {
+            // Supprimer l'ancien fichier si existe
+            // on verifie que le fichier existe ( si getCvFilename = true)
+            if ($candidat->getCvFilename()) {
+                // on met le chemin du fichier dans une variable oldFile 
+                // (concaténation dir / nom du fichier)
+                $oldFile = $uploadDir . '/' . $candidat->getCvFilename();
+                // si un fichier exite
+                if (file_exists($oldFile)) {
+                    // supprime fichier du disque 
+                    unlink($oldFile);
+                }
+            }
+
+            // Déplacer le nouveau fichier
+            // move = méthode de la classe UploadedFile
+            // On déplace le fichier de la mémoire temporaire vers le dossier définitif
+            $file->move($uploadDir, $newFilename);
+
+            // Mettre à jour la base de données (on ne stocke que le nom du fichier)
+            // le fichier uploader est lui, stocker sur le local ou sur le serveur (en prod)
+            $candidat->setCvFilename($newFilename);
+            $entityManager->flush();
+
+            return $this->json([
+                'message' => 'CV téléversé avec succès',
+                'filename' => $newFilename
+            ]);
+        } catch (\Exception $e) {
+            return $this->errorResponse(
+                'Erreur lors du téléversement : ' . $e->getMessage(),
+                Response::HTTP_INTERNAL_SERVER_ERROR
+            );
+        }
+    }
+
+    #[Route('/me/download-cv', name: 'api_candidat_me_download_cv', methods: ['GET'])]
+    public function meDownloadCv(): Response
+    {
+        $candidat = $this->getCandidatConnecte();
+
+        if (!$candidat || !$candidat->getCvFilename()) {
+            return $this->errorResponse("CV introuvable.", Response::HTTP_NOT_FOUND);
+        }
+
+        $uuid = $candidat->getUuid();
+        $filePath = $this->getParameter('kernel.project_dir') . '/var/storage/cv/' . $uuid . '/' . $candidat->getCvFilename();
+
+        if (!file_exists($filePath)) {
+            return $this->errorResponse("Fichier non trouvé sur le serveur.", Response::HTTP_NOT_FOUND);
+        }
+
+        return $this->file($filePath);
+    }
+
+    #[Route('/me/delete-cv', name: 'api_candidat_me_delete_cv', methods: ['DELETE'])]
+    public function meDeleteCv(EntityManagerInterface $entityManager): JsonResponse
+    {
+        $candidat = $this->getCandidatConnecte();
+
+        if (!$candidat) {
+            return $this->errorResponse('Candidat introuvable', Response::HTTP_NOT_FOUND);
+        }
+
+        if (!$candidat->getCvFilename()) {
+            return $this->errorResponse('Aucun CV à supprimer', Response::HTTP_NOT_FOUND);
+        }
+
+        $uuid = $candidat->getUuid();
+        $filePath = $this->getParameter('kernel.project_dir') . '/var/storage/cv/' . $uuid . '/' . $candidat->getCvFilename();
+
+        if (file_exists($filePath)) {
+            unlink($filePath);
+        }
+
+        $candidat->setCvFilename(null);
+        $entityManager->flush();
+
+        return $this->json(['message' => 'CV supprimé avec succès']);
+    }
+
 
     #[Route('', name: 'api_candidat_post_collection', methods: ['POST'])]
     public function new(
@@ -65,8 +230,11 @@ final class CandidatController extends AbstractController
         $data['infos_visibles'] = true;
         $data['niveau_etude'] = NiveauEtude::SANS_DIPLOME;
 
-        // CV optionnel
-        $data['cv'] = null;
+        // Texte d'accroche optionnelle
+        $data['accroche'] = null;
+
+        // cvFilename = null à la création du candidat
+        $data['cvFilename'] = null;
 
         // Génération de l'UUID (package Symfony)
         $data['uuid'] = Uuid::v4()->toRfc4122();
@@ -124,19 +292,26 @@ final class CandidatController extends AbstractController
         return $this->json($this->serializeCandidat($candidat));
     }
 
-    #[Route('/{id}', name: 'api_candidat_put_item', methods: ['PATCH', 'PUT'])]
+    #[Route('/me', name: 'api_candidat_me_put', methods: ['PUT', 'PATCH'])]
+    #[Route('/{id}', name: 'api_candidat_put_item', requirements: ['id' => '\d+'], methods: ['PUT', 'PATCH'])]
     public function edit(
-        int $id,
+        ?int $id = null,
         Request $request,
         CandidatRepository $candidatRepository,
         EntityManagerInterface $entityManager
     ): JsonResponse {
-        $candidat = $candidatRepository->find($id);
 
-        // Vérification : si le candidat n'existe pas :
+        if ($id === null) {
+            $user = $this->getUser();
+            $candidat = $user instanceof \App\Entity\Utilisateur ? $user->getCandidat() : null;
+        } else {
+            $candidat = $candidatRepository->find($id);
+        }
+
         if (!$candidat) {
             return $this->errorResponse("Ce candidat n'existe pas", Response::HTTP_NOT_FOUND);
         }
+
 
         // on récupère la requête du client en JSON et que la fonction "decodeJson" transforme en tableau PHP pour manipulation 
         $data = $this->decodeJson($request);
@@ -190,10 +365,10 @@ final class CandidatController extends AbstractController
             // Validation de l'enum NiveauEtude
             // TryFrom = méthode pour énum, permet de comparerl'entrée avec les valaeurs présentes dans 
             // l'enum niveau_etude. Si match -> retourne une instance, sinon retourne null;
-            //! TryFrom = renvoi null si la valeur n'est pas dans l'enum, le script continue, on gère le null 
-            //! en créant une réponse adaptée "si niveauEtude est null"... 
-            //! J'aurais pu utiliser from à la place mais ce n'est pas recommandé car en cas 
-            //! d'erreur, from stoppe le script (et donc l'application).
+            // TryFrom = renvoi null si la valeur n'est pas dans l'enum, le script continue, on gère le null 
+            // en créant une réponse adaptée "si niveauEtude est null"... 
+            // J'aurais pu utiliser from à la place mais ce n'est pas recommandé car en cas 
+            // d'erreur, from stoppe le script (et donc l'application).
             // Ici, je compare la valeur de la requête à la valeur "niveau_etude" avec les enum possible
             // On s'assure que l'entrée utilisateur soit bonne et non null.
             $niveauEtude = NiveauEtude::tryFrom($data['niveau_etude']);
@@ -209,11 +384,11 @@ final class CandidatController extends AbstractController
         }
 
         // Mise à jour du CV
-        if (array_key_exists('cv', $data)) {
-            if (!is_null($data['cv']) && !is_string($data['cv'])) {
+        if (array_key_exists('accroche', $data)) {
+            if (!is_null($data['accroche']) && !is_string($data['accroche'])) {
                 return $this->errorResponse('cv doit être une chaîne de caractères', Response::HTTP_BAD_REQUEST);
             }
-            $candidat->setCv($data['cv']);
+            $candidat->setAccroche($data['accroche']);
         }
 
         // Mise à jour des compétences
@@ -276,6 +451,178 @@ final class CandidatController extends AbstractController
         return $this->json(null, Response::HTTP_NO_CONTENT);
     }
 
+    // Uploader CV
+    #[Route('/{id}/upload-cv', name: 'api_candidat_upload_cv', methods: ['POST'])]
+    public function uploadCv(int $id, Request $request, EntityManagerInterface $entityManager, CandidatRepository $candidatRepository): JsonResponse
+    {
+        // recherche du candidat par id
+        $candidat = $candidatRepository->find($id);
+
+        // Vérif = si pas de candidat
+        if (!$candidat) {
+            return $this->errorResponse("Ce candidat n'existe pas", Response::HTTP_NOT_FOUND);
+        }
+
+        /** @var UploadedFile $file */ // variable $file de type UploadedFile : Info pour l'IDE
+        $file = $request->files->get('cv');
+        // request->files =  collection de tous les fichiers uploadés
+        // puis on sélectionne dans la collection les fichiers qui ont la clef 'cv'
+
+        // Verif : si pas de fichier
+        if (!$file) {
+            return $this->errorResponse('Aucun fichier trouvé', Response::HTTP_BAD_REQUEST);
+        }
+
+        // Vérifier le type de fichier
+        $formatsAutorises = [
+            'application/pdf', // pdf
+            'application/msword', // ancien word .doc
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document' // nouveau word .docx
+        ];
+        // Vérif : est-ce que le type du fichier existe dans le tableau "formatsAutorisés" ? 
+        if (!in_array($file->getMimeType(), $formatsAutorises)) {
+            // getMimeType = obtiens le format du fichier (méthode de la class UploadedFile)
+            return $this->errorResponse('Format de fichier non autorisé. Utilisez PDF ou Word.', Response::HTTP_BAD_REQUEST);
+        }
+
+        // Vérifier la taille (max 5MB)
+        // 5 * 1024 * 1024 = 5 MB (5 × 1024 Ko × 1024 octets)
+        // getSize = méthode de la classe UploadedFile
+        if ($file->getSize() > 5 * 1024 * 1024) {
+            return $this->errorResponse('Fichier trop volumineux (max 5MB)', Response::HTTP_BAD_REQUEST);
+        }
+
+        // Définir le dossier d'upload
+        // récupère le chemin racine du projet Symfony et concaténation avec dossier cible 
+        // getParameter = méthode Symfony
+        $uuid = $candidat->getUuid(); // On récupère l'uuid du candidat
+        $uploadDir = $this->getParameter('kernel.project_dir') . '/var/storage/cv/' . $uuid;
+
+        // Si le dossier n'existe pas => on le crée 
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0777, true);
+            // création du dossier : 0777 = autorisation lecture/écriture/exécution pour tous, 
+            // true = crée dossier parent si nécessaire. 
+        }
+
+        // Générer un nom unique 
+        // id unique basé sur l'heure actuelle + underscore + nom du fichier normé 
+        // preg_replace = tous les caractères qui ne sont pas lettre, chiffre, point, underscore ou tiret
+        // sont remplacés par un underscore
+        // getClientOriginalName = méthode de la classe "UploadedFile"
+        $originalName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
+
+        // Gestion de la contrainte varchar(255) de la BDD
+        $extension = pathinfo($originalName, PATHINFO_EXTENSION);
+        $nomFichierSansExtension = pathinfo($originalName, PATHINFO_FILENAME);
+
+        $uniquePrefix = uniqid() . '_';
+
+        $maxLength = 255 - strlen($uniquePrefix) - strlen($extension) - 1; // -1 car le point n'est pas pas encore inclus
+
+        $nomFichierSansExtension = substr($nomFichierSansExtension, 0, $maxLength);
+
+        $newFilename = $uniquePrefix . $nomFichierSansExtension . '.' . $extension;
+
+        try {
+            // Supprimer l'ancien fichier si existe
+            // on verifie que le fichier existe ( si getCvFilename = true)
+            if ($candidat->getCvFilename()) {
+                // on met le chemin du fichier dans une variable oldFile 
+                // (concaténation dir / nom du fichier)
+                $oldFile = $uploadDir . '/' . $candidat->getCvFilename();
+                // si un fichier exite
+                if (file_exists($oldFile)) {
+                    // supprime fichier du disque 
+                    unlink($oldFile);
+                }
+            }
+
+            // Déplacer le nouveau fichier
+            // move = méthode de la classe UploadedFile
+            // On déplace le fichier de la mémoire temporaire vers le dossier définitif
+            $file->move($uploadDir, $newFilename);
+
+            // Mettre à jour la base de données (on ne stocke que le nom du fichier)
+            // le fichier uploader est lui, stocker sur le local ou sur le serveur (en prod)
+            $candidat->setCvFilename($newFilename);
+            $entityManager->flush();
+
+            return $this->json([
+                'message' => 'CV téléversé avec succès',
+                'filename' => $newFilename
+            ]);
+        } catch (\Exception $e) {
+            return $this->errorResponse(
+                'Erreur lors du téléversement : ' . $e->getMessage(),
+                Response::HTTP_INTERNAL_SERVER_ERROR
+            );
+        }
+    }
+
+    // Télécharger CV
+    #[Route('/{id}/download-cv', name: 'api_candidat_download_cv', methods: ['GET'])]
+    public function downloadCv(int $id, CandidatRepository $candidatRepository): Response
+    {
+        // selection du candidat par id
+        $candidat = $candidatRepository->find($id);
+
+        // vérif : si candidat n'existe pas OU si nom fichier inexistant
+        if (!$candidat || !$candidat->getCvFilename()) {
+            return $this->errorResponse("Le candidat ou le CV n'existe pas.", Response::HTTP_NOT_FOUND);
+        }
+
+        $uuid = $candidat->getUuid(); // On récupère l'uuid du candidat
+        // chemin vers le fichier physique concaténé avec le nom du fichier .
+        $filePath = $this->getParameter('kernel.project_dir') . '/var/storage/cv/' . $uuid . '/' . $candidat->getCvFilename();
+
+        // Vérif : Si le fichier n'existe
+        if (!file_exists($filePath)) {
+            return $this->errorResponse("Fichier non trouvé sur le serveur.", Response::HTTP_NOT_FOUND);
+        }
+        // Sinon, on retourne le fichier = affichage
+        return $this->file($filePath);
+    }
+
+    // DELETE CV UPLOADE
+    #[Route('/{id}/delete-cv', name: 'api_candidat_delete_cv', methods: ['DELETE'])]
+    public function deleteCv(int $id, EntityManagerInterface $entityManager, CandidatRepository $candidatRepository): JsonResponse
+    {
+        // récupère le candidat par id
+        $candidat = $candidatRepository->find($id);
+
+        // vérif : si le candidat n'existe pas
+        if (!$candidat) {
+            return $this->errorResponse("Candidat non trouvé.", Response::HTTP_NOT_FOUND);
+        }
+
+        // Vérif : Si le nom du fichier n'existe pas
+        if (!$candidat->getCvFilename()) {
+            return $this->errorResponse("Aucun Cv à supprimer.", Response::HTTP_NOT_FOUND);
+        }
+
+        $uuid = $candidat->getUuid(); // On récupère l'uuid du candidat
+        // variable stockant le chemin vers le dossier qui contient les cv
+        $uploadDir = $this->getParameter('kernel.project_dir') . '/var/storage/cv/' . $uuid;
+        // variable stockant le chemin vers le fichier lui-même
+        $filePath = $uploadDir . '/' . $candidat->getCvFilename();
+
+        // Supprimer le fichier physique
+        // Si le fichier existe
+        if (file_exists($filePath)) {
+            // On supprime le fichier
+            unlink($filePath);
+        }
+
+        // Mettre à jour la base de données
+        // on remet la valeur de l'attribut CvFilename à null
+        $candidat->setCvFilename(null);
+        // sauvegarde en BDD
+        $entityManager->flush();
+
+        return $this->json(['message' => 'CV supprimé avec succès']);
+    }
+
     private function serializeCandidat(Candidat $candidat): array
     {
         return [
@@ -283,7 +630,8 @@ final class CandidatController extends AbstractController
             'profil_visible' => $candidat->isProfilVisible(),
             'infos_visibles' => $candidat->isInfosVisibles(),
             'uuid' => $candidat->getUuid(),
-            'cv' => $candidat->getCv(),
+            'accroche' => $candidat->getAccroche(),
+            'cvFilename' => $candidat->getCvFilename(),
             'niveau_etude' => $candidat->getNiveauEtude(),
             "utilisateur" => [
                 "nom" => $candidat->getUtilisateur()->getNom(),
@@ -329,5 +677,12 @@ final class CandidatController extends AbstractController
     private function errorResponse(string $message, int $status): JsonResponse
     {
         return $this->json(['error' => $message], $status);
+    }
+
+    // Méthode privée manquante
+    private function getCandidatConnecte(): ?Candidat
+    {
+        $user = $this->getUser();
+        return $user instanceof \App\Entity\Utilisateur ? $user->getCandidat() : null;
     }
 }
