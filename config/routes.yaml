@@ -9,3 +9,13 @@
 
 controllers:
     resource: routing.controllers
+
+# Route déclarée permettant au firewall de l'utiliser pour la connexion
+api_login:
+    path: /api/login
+    methods: POST
+
+# Route déclarée permettant au firewall de l'utiliser pour le refresh des tokens
+api_refresh_token:
+    path: /api/token/refresh
+    methods: POST

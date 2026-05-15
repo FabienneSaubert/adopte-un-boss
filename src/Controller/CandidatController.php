@@ -1,0 +1,688 @@
+<?php
+
+namespace App\Controller;
+
+use App\Entity\Candidat;
+use App\Entity\Competence;
+use App\Entity\Departement;
+use App\Enum\NiveauEtude;
+use App\Factory\UtilisateurFactory;
+use App\Parser\UtilisateurInputParser;
+use App\Repository\CandidatRepository;
+use App\Repository\UtilisateurRepository;
+use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Uid\Uuid;
+
+#[Route('/api/candidat')]
+final class CandidatController extends AbstractController
+{
+    #[Route('', name: 'api_candidat_get_collection', methods: ['GET'])]
+    public function list(CandidatRepository $candidatRepository): JsonResponse
+    {
+        // Récupération du tableau d'objets "Candidats"  (findAll) -> sérialization index par index puis affichage.
+        $candidats = array_map(
+            fn(Candidat $candidat) => $this->serializeCandidat($candidat),
+            $candidatRepository->findAll()
+        );
+
+        return $this->json($candidats);
+    }
+
+    #[Route('/me', name: 'api_candidat_me', methods: ['GET'])]
+    public function me(): JsonResponse
+    {
+        $user = $this->getUser();
+
+        if (!$user instanceof \App\Entity\Utilisateur) {
+            return $this->json(['error' => 'Non authentifié'], 401);
+        }
+
+        $candidat = $user->getCandidat();
+
+        if (!$candidat) {
+            return $this->json(['error' => 'Candidat introuvable'], 404);
+        }
+
+        return $this->json($this->serializeCandidat($candidat));
+    }
+
+    #[Route('/me/upload-cv', name: 'api_candidat_me_upload_cv', methods: ['POST'])]
+    public function meUploadCv(Request $request, EntityManagerInterface $entityManager): JsonResponse
+    {
+        $candidat = $this->getCandidatConnecte();
+
+        if (!$candidat) {
+            return $this->errorResponse('Candidat introuvable', Response::HTTP_NOT_FOUND);
+        }
+
+        $file = $request->files->get('cv');
+        if (!$file) {
+            return $this->errorResponse('Aucun fichier trouvé', Response::HTTP_BAD_REQUEST);
+        }
+        // Vérifier le type de fichier
+        $formatsAutorises = [
+            'application/pdf', // pdf
+            'application/msword', // ancien word .doc
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document' // nouveau word .docx
+        ];
+        // Vérif : est-ce que le type du fichier existe dans le tableau "formatsAutorisés" ? 
+        if (!in_array($file->getMimeType(), $formatsAutorises)) {
+            // getMimeType = obtiens le format du fichier (méthode de la class UploadedFile)
+            return $this->errorResponse('Format de fichier non autorisé. Utilisez PDF ou Word.', Response::HTTP_BAD_REQUEST);
+        }
+
+        // Vérifier la taille (max 5MB)
+        // 5 * 1024 * 1024 = 5 MB (5 × 1024 Ko × 1024 octets)
+        // getSize = méthode de la classe UploadedFile
+        if ($file->getSize() > 5 * 1024 * 1024) {
+            return $this->errorResponse('Fichier trop volumineux (max 5MB)', Response::HTTP_BAD_REQUEST);
+        }
+
+        // Définir le dossier d'upload
+        // récupère le chemin racine du projet Symfony et concaténation avec dossier cible 
+        // getParameter = méthode Symfony
+        $uuid = $candidat->getUuid(); // On récupère l'uuid du candidat
+        $uploadDir = $this->getParameter('kernel.project_dir') . '/var/storage/cv/' . $uuid;
+
+        // Si le dossier n'existe pas => on le crée 
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0777, true);
+            // création du dossier : 0777 = autorisation lecture/écriture/exécution pour tous, 
+            // true = crée dossier parent si nécessaire. 
+        }
+
+        // Générer un nom unique 
+        // id unique basé sur l'heure actuelle + underscore + nom du fichier normé 
+        // preg_replace = tous les caractères qui ne sont pas lettre, chiffre, point, underscore ou tiret
+        // sont remplacés par un underscore
+        // getClientOriginalName = méthode de la classe "UploadedFile"
+        $originalName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
+
+        // Gestion de la contrainte varchar(255) de la BDD
+        $extension = pathinfo($originalName, PATHINFO_EXTENSION);
+        $nomFichierSansExtension = pathinfo($originalName, PATHINFO_FILENAME);
+
+        $uniquePrefix = uniqid() . '_';
+
+        $maxLength = 255 - strlen($uniquePrefix) - strlen($extension) - 1; // -1 car le point n'est pas pas encore inclus
+
+        $nomFichierSansExtension = substr($nomFichierSansExtension, 0, $maxLength);
+
+        $newFilename = $uniquePrefix . $nomFichierSansExtension . '.' . $extension;
+
+        try {
+            // Supprimer l'ancien fichier si existe
+            // on verifie que le fichier existe ( si getCvFilename = true)
+            if ($candidat->getCvFilename()) {
+                // on met le chemin du fichier dans une variable oldFile 
+                // (concaténation dir / nom du fichier)
+                $oldFile = $uploadDir . '/' . $candidat->getCvFilename();
+                // si un fichier exite
+                if (file_exists($oldFile)) {
+                    // supprime fichier du disque 
+                    unlink($oldFile);
+                }
+            }
+
+            // Déplacer le nouveau fichier
+            // move = méthode de la classe UploadedFile
+            // On déplace le fichier de la mémoire temporaire vers le dossier définitif
+            $file->move($uploadDir, $newFilename);
+
+            // Mettre à jour la base de données (on ne stocke que le nom du fichier)
+            // le fichier uploader est lui, stocker sur le local ou sur le serveur (en prod)
+            $candidat->setCvFilename($newFilename);
+            $entityManager->flush();
+
+            return $this->json([
+                'message' => 'CV téléversé avec succès',
+                'filename' => $newFilename
+            ]);
+        } catch (\Exception $e) {
+            return $this->errorResponse(
+                'Erreur lors du téléversement : ' . $e->getMessage(),
+                Response::HTTP_INTERNAL_SERVER_ERROR
+            );
+        }
+    }
+
+    #[Route('/me/download-cv', name: 'api_candidat_me_download_cv', methods: ['GET'])]
+    public function meDownloadCv(): Response
+    {
+        $candidat = $this->getCandidatConnecte();
+
+        if (!$candidat || !$candidat->getCvFilename()) {
+            return $this->errorResponse("CV introuvable.", Response::HTTP_NOT_FOUND);
+        }
+
+        $uuid = $candidat->getUuid();
+        $filePath = $this->getParameter('kernel.project_dir') . '/var/storage/cv/' . $uuid . '/' . $candidat->getCvFilename();
+
+        if (!file_exists($filePath)) {
+            return $this->errorResponse("Fichier non trouvé sur le serveur.", Response::HTTP_NOT_FOUND);
+        }
+
+        return $this->file($filePath);
+    }
+
+    #[Route('/me/delete-cv', name: 'api_candidat_me_delete_cv', methods: ['DELETE'])]
+    public function meDeleteCv(EntityManagerInterface $entityManager): JsonResponse
+    {
+        $candidat = $this->getCandidatConnecte();
+
+        if (!$candidat) {
+            return $this->errorResponse('Candidat introuvable', Response::HTTP_NOT_FOUND);
+        }
+
+        if (!$candidat->getCvFilename()) {
+            return $this->errorResponse('Aucun CV à supprimer', Response::HTTP_NOT_FOUND);
+        }
+
+        $uuid = $candidat->getUuid();
+        $filePath = $this->getParameter('kernel.project_dir') . '/var/storage/cv/' . $uuid . '/' . $candidat->getCvFilename();
+
+        if (file_exists($filePath)) {
+            unlink($filePath);
+        }
+
+        $candidat->setCvFilename(null);
+        $entityManager->flush();
+
+        return $this->json(['message' => 'CV supprimé avec succès']);
+    }
+
+
+    #[Route('', name: 'api_candidat_post_collection', methods: ['POST'])]
+    public function new(
+        Request $request,
+        UtilisateurInputParser $utilisateurInputParser,
+        UtilisateurRepository $utilisateurRepository,
+        EntityManagerInterface $entityManager,
+        UtilisateurFactory $utilisateurFactory
+    ): JsonResponse {
+
+        $data = $this->decodeJson($request);
+
+        if (!$data) {
+            return $this->errorResponse('JSON invalide', Response::HTTP_BAD_REQUEST);
+        }
+
+        // On stocke le message d'erreur potentiellement renvoyé par la méthode 
+        // validate de UtilisateurInputParser
+        $errorMessage = $utilisateurInputParser->validate($data);
+        if ($errorMessage !== null) {
+            return $this->errorResponse($errorMessage, Response::HTTP_BAD_REQUEST);
+        }
+
+        $emailExistant = $utilisateurRepository->findOneBy(['email' => $data["email"]]);
+        if ($emailExistant) {
+            return $this->errorResponse("Un utilisateur avec la même adresse mail existe déjà. Veuillez vous connectez ou créer un compte avec une nouvelle adresse.", Response::HTTP_BAD_REQUEST);
+        }
+
+        // Valeurs par défaut
+        $data['profil_visible'] = true;
+        $data['infos_visibles'] = true;
+        $data['niveau_etude'] = NiveauEtude::SANS_DIPLOME;
+
+        // Texte d'accroche optionnelle
+        $data['accroche'] = null;
+
+        // cvFilename = null à la création du candidat
+        $data['cvFilename'] = null;
+
+        // Génération de l'UUID (package Symfony)
+        $data['uuid'] = Uuid::v4()->toRfc4122();
+
+        // Récupération du candidat créé par factory
+        $candidat = $utilisateurFactory->create('Candidat', $data);
+
+        // Gestion des compétences
+        // Varification si $data contient competence_ids et qu'il s'agit bien d'un tableau
+        if (isset($data['competence_ids']) && is_array($data['competence_ids'])) {
+            // alors on boucle sur le tableau
+            foreach ($data['competence_ids'] as $competenceId) {
+                // Le repository va chercher en BDD les compétences associées aux ID trouvés
+                $competence = $entityManager->getRepository(Competence::class)->find($competenceId);
+
+                if ($competence) { // si il y a comptétence alors on ajoute au candidat
+                    $candidat->addCompetence($competence);
+                } else { // sinon on retourne une erreur 
+                    return $this->errorResponse("La compétence avec l'id $competenceId est introuvable", Response::HTTP_NOT_FOUND);
+                }
+            }
+        }
+
+        // Gestion du département
+        // Vérifiacation : Si $data contient bien "departement_id"
+        if (isset($data['departement'])) {
+            // On stocke le département récupéré par la requête du repo
+            $departement = $entityManager->getRepository(Departement::class)->find($data['departement']);
+
+            if ($departement) { // si département n'est pas null
+                $candidat->setDepartement($departement); // on set le département du candidat
+            } else { // sinoon, envoi d'une erreur
+                return $this->errorResponse('Departement introuvable', Response::HTTP_NOT_FOUND);
+            }
+        }
+
+        $entityManager->persist($candidat); // On met en mémoire
+        $entityManager->flush(); // on sauvegarde
+
+        return $this->json($this->serializeCandidat($candidat), Response::HTTP_CREATED);
+    }
+
+
+    #[Route('/{id}', name: 'api_candidat_get_item', methods: ['GET'])]
+    public function show(int $id, CandidatRepository $candidatRepository): JsonResponse
+    {
+        // on récupère le candidat par son ID par requête à la BDD via le Repo candidat
+        $candidat = $candidatRepository->find($id);
+
+        if (!$candidat) {
+            return $this->errorResponse('Candidat introuvable', Response::HTTP_NOT_FOUND);
+        }
+
+        // On retourne la représentation de l'objet candidat en JSON 
+        return $this->json($this->serializeCandidat($candidat));
+    }
+
+    #[Route('/me', name: 'api_candidat_me_put', methods: ['PUT', 'PATCH'])]
+    #[Route('/{id}', name: 'api_candidat_put_item', requirements: ['id' => '\d+'], methods: ['PUT', 'PATCH'])]
+    public function edit(
+        ?int $id = null,
+        Request $request,
+        CandidatRepository $candidatRepository,
+        EntityManagerInterface $entityManager
+    ): JsonResponse {
+
+        if ($id === null) {
+            $user = $this->getUser();
+            $candidat = $user instanceof \App\Entity\Utilisateur ? $user->getCandidat() : null;
+        } else {
+            $candidat = $candidatRepository->find($id);
+        }
+
+        if (!$candidat) {
+            return $this->errorResponse("Ce candidat n'existe pas", Response::HTTP_NOT_FOUND);
+        }
+
+
+        // on récupère la requête du client en JSON et que la fonction "decodeJson" transforme en tableau PHP pour manipulation 
+        $data = $this->decodeJson($request);
+
+        // Vérifiacation : Si $data est vide alors envoi erreur
+        if (!$data) {
+            return $this->errorResponse('JSON invalide', Response::HTTP_BAD_REQUEST);
+        }
+
+        // La varibale isUpdate stocke une valeur booléenne à savoir si la méthode de la requête est PUT ou PATCH
+        $isPut = $request->getMethod() === "PUT";
+
+        // Mise à jour de profil_visible
+        // Vérification si profil_visible existe bien dans $data (requête HTTP)
+        if (array_key_exists('profil_visible', $data)) {
+            // Si il ne s'agit pas d'un booléen alors renvoi une erreur
+            if (!is_bool($data['profil_visible'])) {
+                return $this->errorResponse('profil_visible doit être un booléen', Response::HTTP_BAD_REQUEST);
+            }
+            // Si la valeur est bien booléenne alors on update la valeur de profil_visible
+            $candidat->setProfilVisible($data['profil_visible']);
+        } elseif ($isPut) { // Sinon renvoie une erreur
+            return $this->errorResponse('profil_visible est obligatoire', Response::HTTP_BAD_REQUEST);
+        }
+
+        // Mise à jour de infos_visibles
+        // Vérifiaction : est-ce que infos_visibles 
+        if (array_key_exists('infos_visibles', $data)) {
+            if (!is_bool($data['infos_visibles'])) {
+                return $this->errorResponse(
+                    'infos_visibles doit être un booléen',
+                    Response::HTTP_BAD_REQUEST
+                );
+            }
+
+            $candidat->setInfosVisibles($data['infos_visibles']);
+        } elseif ($isPut) {
+            return $this->errorResponse(
+                'infos_visibles est obligatoire',
+                Response::HTTP_BAD_REQUEST
+            );
+        }
+
+
+        // Mise à jour du niveau d'études
+        // Vérification : est-ce que niveau_etude est bien dans $data ? 
+        if (array_key_exists('niveau_etude', $data)) {
+            // Si oui, alors on vérifie si la valeur correspond bien au fichier ENUM 
+            // et on la stocke dans $niveauEtude
+
+            // Validation de l'enum NiveauEtude
+            // TryFrom = méthode pour énum, permet de comparerl'entrée avec les valaeurs présentes dans 
+            // l'enum niveau_etude. Si match -> retourne une instance, sinon retourne null;
+            // TryFrom = renvoi null si la valeur n'est pas dans l'enum, le script continue, on gère le null 
+            // en créant une réponse adaptée "si niveauEtude est null"... 
+            // J'aurais pu utiliser from à la place mais ce n'est pas recommandé car en cas 
+            // d'erreur, from stoppe le script (et donc l'application).
+            // Ici, je compare la valeur de la requête à la valeur "niveau_etude" avec les enum possible
+            // On s'assure que l'entrée utilisateur soit bonne et non null.
+            $niveauEtude = NiveauEtude::tryFrom($data['niveau_etude']);
+            // Puis le repo édite la nouvelle valeur de l'attribut niveau_etude en mémoire
+            $candidat->setNiveauEtude($niveauEtude);
+
+            // si pas de valeur alors erreur
+            if (!$niveauEtude) {
+                return $this->errorResponse('Valeur de niveau_etude invalide', Response::HTTP_BAD_REQUEST);
+            } // Si la première vérifiaction échoue alors erreur car niveau_etude n'est pas dans $data
+        } elseif ($isPut) {
+            return $this->errorResponse('Le niveau d\'études est requis', Response::HTTP_BAD_REQUEST);
+        }
+
+        // Mise à jour du CV
+        if (array_key_exists('accroche', $data)) {
+            if (!is_null($data['accroche']) && !is_string($data['accroche'])) {
+                return $this->errorResponse('cv doit être une chaîne de caractères', Response::HTTP_BAD_REQUEST);
+            }
+            $candidat->setAccroche($data['accroche']);
+        }
+
+        // Mise à jour des compétences
+        if (array_key_exists('competences', $data)) {
+            if (!is_array($data['competences'])) {
+                return $this->errorResponse('La liste des id compétence doit être un tableau', Response::HTTP_BAD_REQUEST);
+            }
+
+            // Vide la collection Competences
+            $candidat->getCompetences()->clear();
+
+            // Ajouter les nouvelles compétences
+            foreach ($data['competences'] as $competenceId) {
+                $competence = $entityManager->find(Competence::class, $competenceId);
+
+                if ($competence) {
+                    $candidat->addCompetence($competence);
+                } else {
+                    return $this->errorResponse("La compétence id $competenceId est introuvable", Response::HTTP_NOT_FOUND);
+                }
+            }
+        }
+
+        // Mise à jour du département 
+        if (array_key_exists('departement', $data)) {
+            if ($data['departement'] === null) {
+                $candidat->setDepartement(null);
+            } else {
+                $departement = $entityManager->find(Departement::class, $data['departement']); // Méthode plus concise
+                if ($departement) {
+                    $candidat->setDepartement($departement);
+                } else {
+                    return $this->errorResponse('Departement non trouvé', Response::HTTP_NOT_FOUND);
+                }
+            }
+        }
+
+        $entityManager->flush();
+
+        return $this->json($this->serializeCandidat($candidat));
+    }
+
+    #[Route('/{id}', name: 'api_candidat_delete_item', methods: ['DELETE'])]
+    public function delete(int $id, CandidatRepository $candidatRepository, EntityManagerInterface $entityManager): JsonResponse
+    {
+        // Requête ppour récupérer le candidat par son id
+        $candidat = $candidatRepository->find($id);
+
+        // Gestion des erreurs
+        // Vérification : Si candidat = null alors erreur
+        if (!$candidat) {
+            return $this->errorResponse("Ce candidat n'existe pas", Response::HTTP_NOT_FOUND);
+        }
+
+        $entityManager->remove($candidat); // préparation de la requête Delete 
+        $entityManager->flush(); // Envoi la requête = modification de la BDD
+
+        // une requête attend une réponse, on renvoit donc une réponse null ici car la donnée a été supprimée
+        // le seul but de cette réponse est de faire savoir au client que la requête à bien aboutie 
+        return $this->json(null, Response::HTTP_NO_CONTENT);
+    }
+
+    // Uploader CV
+    #[Route('/{id}/upload-cv', name: 'api_candidat_upload_cv', methods: ['POST'])]
+    public function uploadCv(int $id, Request $request, EntityManagerInterface $entityManager, CandidatRepository $candidatRepository): JsonResponse
+    {
+        // recherche du candidat par id
+        $candidat = $candidatRepository->find($id);
+
+        // Vérif = si pas de candidat
+        if (!$candidat) {
+            return $this->errorResponse("Ce candidat n'existe pas", Response::HTTP_NOT_FOUND);
+        }
+
+        /** @var UploadedFile $file */ // variable $file de type UploadedFile : Info pour l'IDE
+        $file = $request->files->get('cv');
+        // request->files =  collection de tous les fichiers uploadés
+        // puis on sélectionne dans la collection les fichiers qui ont la clef 'cv'
+
+        // Verif : si pas de fichier
+        if (!$file) {
+            return $this->errorResponse('Aucun fichier trouvé', Response::HTTP_BAD_REQUEST);
+        }
+
+        // Vérifier le type de fichier
+        $formatsAutorises = [
+            'application/pdf', // pdf
+            'application/msword', // ancien word .doc
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document' // nouveau word .docx
+        ];
+        // Vérif : est-ce que le type du fichier existe dans le tableau "formatsAutorisés" ? 
+        if (!in_array($file->getMimeType(), $formatsAutorises)) {
+            // getMimeType = obtiens le format du fichier (méthode de la class UploadedFile)
+            return $this->errorResponse('Format de fichier non autorisé. Utilisez PDF ou Word.', Response::HTTP_BAD_REQUEST);
+        }
+
+        // Vérifier la taille (max 5MB)
+        // 5 * 1024 * 1024 = 5 MB (5 × 1024 Ko × 1024 octets)
+        // getSize = méthode de la classe UploadedFile
+        if ($file->getSize() > 5 * 1024 * 1024) {
+            return $this->errorResponse('Fichier trop volumineux (max 5MB)', Response::HTTP_BAD_REQUEST);
+        }
+
+        // Définir le dossier d'upload
+        // récupère le chemin racine du projet Symfony et concaténation avec dossier cible 
+        // getParameter = méthode Symfony
+        $uuid = $candidat->getUuid(); // On récupère l'uuid du candidat
+        $uploadDir = $this->getParameter('kernel.project_dir') . '/var/storage/cv/' . $uuid;
+
+        // Si le dossier n'existe pas => on le crée 
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0777, true);
+            // création du dossier : 0777 = autorisation lecture/écriture/exécution pour tous, 
+            // true = crée dossier parent si nécessaire. 
+        }
+
+        // Générer un nom unique 
+        // id unique basé sur l'heure actuelle + underscore + nom du fichier normé 
+        // preg_replace = tous les caractères qui ne sont pas lettre, chiffre, point, underscore ou tiret
+        // sont remplacés par un underscore
+        // getClientOriginalName = méthode de la classe "UploadedFile"
+        $originalName = preg_replace('/[^a-zA-Z0-9._-]/', '_', $file->getClientOriginalName());
+
+        // Gestion de la contrainte varchar(255) de la BDD
+        $extension = pathinfo($originalName, PATHINFO_EXTENSION);
+        $nomFichierSansExtension = pathinfo($originalName, PATHINFO_FILENAME);
+
+        $uniquePrefix = uniqid() . '_';
+
+        $maxLength = 255 - strlen($uniquePrefix) - strlen($extension) - 1; // -1 car le point n'est pas pas encore inclus
+
+        $nomFichierSansExtension = substr($nomFichierSansExtension, 0, $maxLength);
+
+        $newFilename = $uniquePrefix . $nomFichierSansExtension . '.' . $extension;
+
+        try {
+            // Supprimer l'ancien fichier si existe
+            // on verifie que le fichier existe ( si getCvFilename = true)
+            if ($candidat->getCvFilename()) {
+                // on met le chemin du fichier dans une variable oldFile 
+                // (concaténation dir / nom du fichier)
+                $oldFile = $uploadDir . '/' . $candidat->getCvFilename();
+                // si un fichier exite
+                if (file_exists($oldFile)) {
+                    // supprime fichier du disque 
+                    unlink($oldFile);
+                }
+            }
+
+            // Déplacer le nouveau fichier
+            // move = méthode de la classe UploadedFile
+            // On déplace le fichier de la mémoire temporaire vers le dossier définitif
+            $file->move($uploadDir, $newFilename);
+
+            // Mettre à jour la base de données (on ne stocke que le nom du fichier)
+            // le fichier uploader est lui, stocker sur le local ou sur le serveur (en prod)
+            $candidat->setCvFilename($newFilename);
+            $entityManager->flush();
+
+            return $this->json([
+                'message' => 'CV téléversé avec succès',
+                'filename' => $newFilename
+            ]);
+        } catch (\Exception $e) {
+            return $this->errorResponse(
+                'Erreur lors du téléversement : ' . $e->getMessage(),
+                Response::HTTP_INTERNAL_SERVER_ERROR
+            );
+        }
+    }
+
+    // Télécharger CV
+    #[Route('/{id}/download-cv', name: 'api_candidat_download_cv', methods: ['GET'])]
+    public function downloadCv(int $id, CandidatRepository $candidatRepository): Response
+    {
+        // selection du candidat par id
+        $candidat = $candidatRepository->find($id);
+
+        // vérif : si candidat n'existe pas OU si nom fichier inexistant
+        if (!$candidat || !$candidat->getCvFilename()) {
+            return $this->errorResponse("Le candidat ou le CV n'existe pas.", Response::HTTP_NOT_FOUND);
+        }
+
+        $uuid = $candidat->getUuid(); // On récupère l'uuid du candidat
+        // chemin vers le fichier physique concaténé avec le nom du fichier .
+        $filePath = $this->getParameter('kernel.project_dir') . '/var/storage/cv/' . $uuid . '/' . $candidat->getCvFilename();
+
+        // Vérif : Si le fichier n'existe
+        if (!file_exists($filePath)) {
+            return $this->errorResponse("Fichier non trouvé sur le serveur.", Response::HTTP_NOT_FOUND);
+        }
+        // Sinon, on retourne le fichier = affichage
+        return $this->file($filePath);
+    }
+
+    // DELETE CV UPLOADE
+    #[Route('/{id}/delete-cv', name: 'api_candidat_delete_cv', methods: ['DELETE'])]
+    public function deleteCv(int $id, EntityManagerInterface $entityManager, CandidatRepository $candidatRepository): JsonResponse
+    {
+        // récupère le candidat par id
+        $candidat = $candidatRepository->find($id);
+
+        // vérif : si le candidat n'existe pas
+        if (!$candidat) {
+            return $this->errorResponse("Candidat non trouvé.", Response::HTTP_NOT_FOUND);
+        }
+
+        // Vérif : Si le nom du fichier n'existe pas
+        if (!$candidat->getCvFilename()) {
+            return $this->errorResponse("Aucun Cv à supprimer.", Response::HTTP_NOT_FOUND);
+        }
+
+        $uuid = $candidat->getUuid(); // On récupère l'uuid du candidat
+        // variable stockant le chemin vers le dossier qui contient les cv
+        $uploadDir = $this->getParameter('kernel.project_dir') . '/var/storage/cv/' . $uuid;
+        // variable stockant le chemin vers le fichier lui-même
+        $filePath = $uploadDir . '/' . $candidat->getCvFilename();
+
+        // Supprimer le fichier physique
+        // Si le fichier existe
+        if (file_exists($filePath)) {
+            // On supprime le fichier
+            unlink($filePath);
+        }
+
+        // Mettre à jour la base de données
+        // on remet la valeur de l'attribut CvFilename à null
+        $candidat->setCvFilename(null);
+        // sauvegarde en BDD
+        $entityManager->flush();
+
+        return $this->json(['message' => 'CV supprimé avec succès']);
+    }
+
+    private function serializeCandidat(Candidat $candidat): array
+    {
+        return [
+            'id' => $candidat->getId(),
+            'profil_visible' => $candidat->isProfilVisible(),
+            'infos_visibles' => $candidat->isInfosVisibles(),
+            'uuid' => $candidat->getUuid(),
+            'accroche' => $candidat->getAccroche(),
+            'cvFilename' => $candidat->getCvFilename(),
+            'niveau_etude' => $candidat->getNiveauEtude(),
+            "utilisateur" => [
+                "nom" => $candidat->getUtilisateur()->getNom(),
+                "prenom" => $candidat->getUtilisateur()->getPrenom(),
+                "date_de_naissance" => $candidat->getUtilisateur()->getDateDeNaissance(),
+                "email" => $candidat->getUtilisateur()->getEmail(),
+                "telephone" => $candidat->getUtilisateur()->getTelephone(),
+            ],
+            'competences' => array_map(
+                fn(Competence $c) => [
+                    'id' => $c->getId(),
+                    'type' => $c->getType(),
+                    'nom' => $c->getNom(),
+                    'domaine' => $c->getDomaine()
+                ],
+                $candidat->getCompetences()->toArray()
+            ),
+            'departement' => $candidat->getDepartement() ? [
+                'id' => $candidat->getDepartement()->getId(),
+                'nom' => $candidat->getDepartement()->getNom(),
+                'numero' => $candidat->getDepartement()->getNumero(),
+            ] : null,
+            'candidatures' => array_map(
+                fn($candidature) => [
+                    'id' => $candidature->getId(),
+                ],
+                $candidat->getCandidatures()->toArray()
+            ),
+        ];
+    }
+
+    private function decodeJson(Request $request): ?array
+    {
+        $payload = json_decode($request->getContent(), true);
+
+        if (!is_array($payload) || json_last_error() !== JSON_ERROR_NONE) {
+            return null;
+        }
+
+        return $payload;
+    }
+
+    private function errorResponse(string $message, int $status): JsonResponse
+    {
+        return $this->json(['error' => $message], $status);
+    }
+
+    // Méthode privée manquante
+    private function getCandidatConnecte(): ?Candidat
+    {
+        $user = $this->getUser();
+        return $user instanceof \App\Entity\Utilisateur ? $user->getCandidat() : null;
+    }
+}

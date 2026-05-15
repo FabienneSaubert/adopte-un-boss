@@ -1,0 +1,32 @@
+gesdinet_jwt_refresh_token:
+
+    # Nom de l'entité dans laquelle le bundle JWT Refresh pourra trouver la classe qui extends BaseRefreshToken,
+    # qui contient par extends les attributs concernant la table refresh_tokens, et aussi optionnellement du code métier
+    refresh_token_class: App\Entity\RefreshToken
+
+    # Durée de vie du token de refresh
+    # Son but est d'avoir une durée longue afin de permettre les sessions longues durée.
+    # Durant la durée de vie d'un token de refresh, on peut renouveller autant de fois qu'il le token d'accès.
+    # Défini le plus souvent selon l'usage métier, dans notre cas à 1 209 600 secondes (2 semaines).
+    # On force ainsi l'utilisateur à se reconnecter tous les 15 jours minimum.
+    # Stocké dans l'env de la même façon que pour le token d'accès.
+    ttl: '%env(int:JWT_REFRESH_TOKEN_TTL)%'
+
+    # Empêche le glissement de session
+    # Cela permet d'éviter de prolonger la durée de vie du token de refresh à chaque refresh.
+    # Un choix pûrement métier de forcer l'utilisateur à se reconnecter régulièrement,
+    # le but étant de limiter dans le temps l'usurpation d'un compte utilisateur.
+    # Après expiration du token de refresh -> connexion obligatoire
+    ttl_update: false
+    # /!\ ATTENTION : utilisable uniquement si single_use: false, car dans le cas contraire,
+    # le TTL d'un token de refresh est remis à sa valeur initiale, dû au fait qu'il s'agit d'un nouveau token.
+    # L'option est cependant laissée car pas bloquante, mais permet d'indiquer ici l'intention métier.
+    # La gestion intelligente du TTL doit être faite via du attribut supplémentaire dans la table refresh_tokens,
+    # en enregistrant la date d'expiration absolue, qui elle ne changera pas contrairement à la date de création.
+    # => à implémenter pour plus tard, pour l'instant : session glissante
+
+    # Rotation sécurisée
+    # Force un token refresh a être changé régulièrement, ce qui permet d'invalider d'anciens
+    # tokens de refresh si quelqu'un d'autre que l'utilisateur voudrait les utiliser pour
+    # obtenir un nouveau token d'accès.
+    single_use: true
